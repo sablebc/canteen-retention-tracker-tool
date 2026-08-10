@@ -11,7 +11,9 @@ export default function OutcomeLegend({ sites, label = 'Outcomes' }) {
   const { counts, classified, unclassified } = countOutcomes(sites)
 
   return (
-    <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-toolbar-line bg-surface px-2.5 py-1.5 text-[11px] text-muted">
+    // Light #F8F9FA strip, so the text stays dark; `text-body` keeps these
+    // 11px labels and counts comfortably above the contrast floor.
+    <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 border-b border-toolbar-line bg-surface px-2.5 py-1.5 text-[11px] text-body">
       <span className="font-semibold uppercase tracking-[0.06em]">{label}</span>
 
       {OUTCOMES.map(({ value, short, color }) => (

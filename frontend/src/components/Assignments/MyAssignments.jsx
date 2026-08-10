@@ -21,8 +21,11 @@ const SELECT_CLASSES =
   'h-6 border border-line bg-white px-1.5 text-[11px] focus:border-accent ' +
   'focus:outline focus:outline-1 focus:outline-accent'
 
+// The filter bar sits on the light #F8F9FA surface, so its text stays dark;
+// `text-body` rather than `text-muted` keeps these 11px labels well clear of
+// the contrast floor.
 const FILTER_LABEL_CLASSES =
-  'text-[11px] font-semibold uppercase tracking-[0.06em] text-muted'
+  'text-[11px] font-semibold uppercase tracking-[0.06em] text-body'
 
 /** Count sites per key, biggest first, for the breakdown line. */
 function countBy(sites, getKey) {
@@ -151,13 +154,18 @@ export default function MyAssignments() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-white">
-      <div className="flex-none border-b border-toolbar-line bg-white px-3.5 pb-2.5 pt-3">
+      {/*
+        Dark teal band with white text throughout. Both the background and the
+        foreground are stated explicitly here rather than inherited, so the
+        summary stays legible no matter what surrounds it.
+      */}
+      <div className="flex-none border-b border-teal-deep bg-teal-header px-3.5 pb-2.5 pt-3 text-white">
         <div className="mb-[7px] flex items-baseline gap-2.5">
-          <span className="text-[13px] font-semibold text-teal-header">My Calls</span>
-          <span className="text-[11px] text-muted tabular-nums">
+          <span className="text-[13px] font-semibold text-white">My Calls</span>
+          <span className="text-[11px] text-white tabular-nums">
             {completed} / {total} calls completed
           </span>
-          <span className="text-[11px] text-muted tabular-nums">{percent}%</span>
+          <span className="text-[11px] text-white tabular-nums">{percent}%</span>
         </div>
 
         <div
@@ -166,14 +174,16 @@ export default function MyAssignments() {
           aria-valuemin={0}
           aria-valuemax={total}
           aria-label="Calls completed"
+          // Light track on the teal band: the unfilled portion has to stay
+          // distinguishable from the header behind it, not just from the fill.
           className="h-2.5 max-w-[620px] border border-line-light bg-surface"
         >
           <div className="h-full bg-accent" style={{ width: `${percent}%` }} />
         </div>
 
-        <div className="mt-[7px] text-[11px] leading-[1.6] text-muted">
+        <div className="mt-[7px] text-[11px] leading-[1.6] text-white">
           <span className="font-semibold">Branch:</span> {breakdownText(branchCounts)}
-          <span className="px-2 text-toolbar-line">|</span>
+          <span className="px-2 text-white">|</span>
           <span className="font-semibold">Status:</span> {breakdownText(statusCounts)}
         </div>
       </div>
@@ -213,7 +223,7 @@ export default function MyAssignments() {
           </select>
         </label>
 
-        <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[11px]">
+        <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[11px] text-body">
           <input
             type="checkbox"
             checked={showCalled}
@@ -223,7 +233,7 @@ export default function MyAssignments() {
           Show already called
         </label>
 
-        <span className="ml-auto whitespace-nowrap text-[11px] text-muted tabular-nums">
+        <span className="ml-auto whitespace-nowrap text-[11px] text-body tabular-nums">
           {visibleSites.length} of {total} shown
         </span>
       </div>
