@@ -88,9 +88,36 @@ class CallRecord(models.Model):
     q4_could_improve = models.TextField(blank=True)
     notes = models.TextField(blank=True)
     actions_required = models.TextField(blank=True)
+    data_corrections = models.TextField(blank=True)
+    corrections_applied = models.BooleanField(default=False)
 
     class Meta:
         ordering = ["-call_date"]
 
     def __str__(self):
         return f"Call {self.site.site_id} ({self.call_date})"
+
+
+class StatusHistory(models.Model):
+    """An append-only log of a site's account status over time.
+
+    Every ingestion run adds a new row per site recording that site's current
+    status; existing rows are never updated or deleted. ``Site.account_status``
+    remains the source of truth for the *current* status — this table exists so
+    status changes stay queryable as a trend.
+    """
+
+    site = models.ForeignKey(
+        Site,
+        on_delete=models.CASCADE,
+        related_name="status_history",
+    )
+    status = models.CharField(max_length=64)
+    raw_status = models.CharField(max_length=128)
+    observed_date = models.DateField()
+
+    class Meta:
+        ordering = ["-observed_date"]
+
+    def __str__(self):
+        return f"{self.site.site_id} status {self.status} @ {self.observed_date}"
