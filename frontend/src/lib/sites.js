@@ -14,6 +14,20 @@ export function dispatchAssetSelected(site) {
   window.dispatchEvent(new CustomEvent('assetSelected', { detail: site }))
 }
 
+/** Fired after a site is saved, so open list views can refresh their copy. */
+export const SITE_UPDATED_EVENT = 'siteUpdated'
+
+/** Fired after a call is logged, so the assignments view can recount progress. */
+export const CALL_LOGGED_EVENT = 'callLogged'
+
+export function dispatchSiteUpdated(site) {
+  window.dispatchEvent(new CustomEvent(SITE_UPDATED_EVENT, { detail: site }))
+}
+
+export function dispatchCallLogged(call) {
+  window.dispatchEvent(new CustomEvent(CALL_LOGGED_EVENT, { detail: call }))
+}
+
 /** DRF returns a bare array unless pagination is enabled; tolerate both shapes. */
 export function toSiteArray(payload) {
   if (Array.isArray(payload)) return payload
@@ -32,24 +46,34 @@ export function getRepInitials(site) {
 }
 
 /**
- * Annual revenue from the most recent snapshot that records one.
+ * Read one revenue figure from the most recent snapshot that records it.
  *
  * Snapshots arrive newest-first, but the order is re-derived here rather than
- * assumed so the column stays correct if the API's ordering ever changes.
- * Returns a Number, or null when no snapshot carries an annual figure.
+ * assumed so the value stays correct if the API's ordering ever changes.
+ * Returns a Number, or null when no snapshot carries that figure.
  */
-export function getLatestAnnualRevenue(site) {
+function getLatestRevenue(site, key) {
   const snapshots = site.revenue_snapshots
   if (!Array.isArray(snapshots) || snapshots.length === 0) return null
 
-  const withRevenue = snapshots.filter((s) => !isBlank(s.annual_revenue))
+  const withRevenue = snapshots.filter((snapshot) => !isBlank(snapshot[key]))
   if (withRevenue.length === 0) return null
 
   const latest = withRevenue.reduce((newest, candidate) =>
     String(candidate.snapshot_date) > String(newest.snapshot_date) ? candidate : newest,
   )
-  const amount = Number(latest.annual_revenue)
+  const amount = Number(latest[key])
   return Number.isFinite(amount) ? amount : null
+}
+
+/** Annual revenue from the most recent snapshot that records one. */
+export function getLatestAnnualRevenue(site) {
+  return getLatestRevenue(site, 'annual_revenue')
+}
+
+/** F25 revenue from the most recent snapshot that records one. */
+export function getLatestF25Revenue(site) {
+  return getLatestRevenue(site, 'f25_revenue')
 }
 
 const CURRENCY_FORMAT = new Intl.NumberFormat('en-CA', {

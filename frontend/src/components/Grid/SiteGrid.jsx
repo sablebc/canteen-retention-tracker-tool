@@ -1,39 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { getSites } from '../../api/client'
-import { dispatchAssetSelected, isBlank, toSiteArray } from '../../lib/sites'
+import { useSites } from '../../hooks/useSites'
+import { dispatchAssetSelected } from '../../lib/sites'
 import GridFilters from './GridFilters'
-import { COLUMNS, UNASSIGNED, statusClasses } from './columns'
-
-const ASC = 'asc'
-const DESC = 'desc'
+import SiteTable from './SiteTable'
+import { COLUMNS, UNASSIGNED } from './columns'
+import { ASC, nextSortState, sortSites } from './sorting'
 
 /** Reps are listed in a fixed order so the dropdown does not reshuffle. */
 const REP_ORDER = ['AJ', 'BC', 'CM', 'WH']
-
-/**
- * Compare two sites on one column, always sorting blanks to the bottom.
- *
- * Blanks are placed last in both directions on purpose: a descending sort that
- * leads with 400 empty cells hides the data the user asked to see.
- */
-function makeComparator(column, direction) {
-  const sign = direction === ASC ? 1 : -1
-
-  return (siteA, siteB) => {
-    const a = column.sortValue(siteA)
-    const b = column.sortValue(siteB)
-
-    if (isBlank(a) && isBlank(b)) return 0
-    if (isBlank(a)) return 1
-    if (isBlank(b)) return -1
-
-    if (column.type === 'number') return sign * (a - b)
-    // ISO dates compare correctly as plain strings.
-    if (column.type === 'date') return sign * String(a).localeCompare(String(b))
-    return sign * String(a).localeCompare(String(b), 'en', { sensitivity: 'base' })
-  }
-}
 
 function matchesSearch(site, needle) {
   if (needle === '') return true
@@ -48,47 +23,19 @@ function matchesRep(site, rep) {
   return initials === rep
 }
 
-/** Sort direction indicator; renders a stable-width caret so headers don't jump. */
-function SortCaret({ active, direction }) {
-  if (!active) return <span className="text-gray-300">↕</span>
-  return <span className="text-gray-700">{direction === ASC ? '↑' : '↓'}</span>
-}
-
 /**
  * Sortable, filterable spreadsheet view of every tracked site.
  *
  * Clicking a row dispatches the same window-level `assetSelected` event the map
- * markers use, so either view can drive a future detail panel.
+ * markers use, which opens the shared site detail panel.
  */
 export default function SiteGrid() {
-  const [sites, setSites] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState(null)
+  const { sites, isLoading, loadError } = useSites()
 
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [rep, setRep] = useState('')
   const [sort, setSort] = useState({ key: 'name', direction: ASC })
-
-  useEffect(() => {
-    let isCancelled = false
-
-    const loadSites = async () => {
-      try {
-        const payload = await getSites()
-        if (!isCancelled) setSites(toSiteArray(payload))
-      } catch (error) {
-        if (!isCancelled) setLoadError(error.message)
-      } finally {
-        if (!isCancelled) setIsLoading(false)
-      }
-    }
-
-    loadSites()
-    return () => {
-      isCancelled = true
-    }
-  }, [])
 
   // Options come from the data so a status the tracker starts using shows up
   // without a code change.
@@ -114,19 +61,8 @@ export default function SiteGrid() {
         (status === '' || site.account_status === status) &&
         matchesRep(site, rep),
     )
-
-    const column = COLUMNS.find((candidate) => candidate.key === sort.key)
-    if (!column) return filtered
-    return [...filtered].sort(makeComparator(column, sort.direction))
+    return sortSites(filtered, COLUMNS, sort)
   }, [sites, search, status, rep, sort])
-
-  const handleSort = (key) => {
-    setSort((current) =>
-      current.key === key
-        ? { key, direction: current.direction === ASC ? DESC : ASC }
-        : { key, direction: ASC },
-    )
-  }
 
   const resetFilters = () => {
     setSearch('')
@@ -168,88 +104,13 @@ export default function SiteGrid() {
         onReset={resetFilters}
       />
 
-      <div className="min-h-0 flex-1 overflow-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10">
-            <tr className="bg-gray-100 shadow-[inset_0_-1px_0_0_rgb(209_213_219)]">
-              {COLUMNS.map((column) => {
-                const isActive = sort.key === column.key
-                return (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    aria-sort={
-                      isActive
-                        ? sort.direction === ASC
-                          ? 'ascending'
-                          : 'descending'
-                        : 'none'
-                    }
-                    className={`px-3 py-2 font-semibold text-gray-700 ${
-                      column.align === 'right' ? 'text-right' : 'text-left'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleSort(column.key)}
-                      className={`inline-flex w-full items-center gap-1 hover:text-blue-700 ${
-                        column.align === 'right' ? 'justify-end' : ''
-                      }`}
-                    >
-                      {column.label}
-                      <SortCaret active={isActive} direction={sort.direction} />
-                    </button>
-                  </th>
-                )
-              })}
-            </tr>
-          </thead>
-
-          <tbody>
-            {visibleSites.map((site) => (
-              <tr
-                key={site.id}
-                tabIndex={0}
-                onClick={() => dispatchAssetSelected(site)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault()
-                    dispatchAssetSelected(site)
-                  }
-                }}
-                className="cursor-pointer odd:bg-white even:bg-gray-50 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
-              >
-                {COLUMNS.map((column) => (
-                  <td
-                    key={column.key}
-                    className={`whitespace-nowrap px-3 py-1.5 text-gray-600 ${
-                      column.align === 'right' ? 'text-right' : ''
-                    } ${column.cellClassName ?? ''}`}
-                  >
-                    {column.isStatus ? (
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses(
-                          site.account_status,
-                        )}`}
-                      >
-                        {site.account_status || 'Unknown'}
-                      </span>
-                    ) : (
-                      column.format(site)
-                    )}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {visibleSites.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-gray-500">
-            No sites match the current filters.
-          </p>
-        )}
-      </div>
+      <SiteTable
+        sites={visibleSites}
+        columns={COLUMNS}
+        sort={sort}
+        onSortChange={(key) => setSort((current) => nextSortState(current, key))}
+        onRowClick={dispatchAssetSelected}
+      />
     </div>
   )
 }

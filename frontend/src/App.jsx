@@ -1,15 +1,28 @@
 import { useState } from 'react'
 
+import MyAssignments from './components/Assignments/MyAssignments'
 import SiteGrid from './components/Grid/SiteGrid'
 import SiteMap from './components/Map/SiteMap'
+import SiteDetailPanel from './components/SiteDetail/SiteDetailPanel'
+import { useSelectedSite } from './hooks/useSelectedSite'
 
 const VIEWS = [
   { id: 'map', label: 'Map' },
   { id: 'grid', label: 'Grid' },
+  { id: 'assignments', label: 'My Calls' },
 ]
+
+const VIEW_COMPONENTS = {
+  map: SiteMap,
+  grid: SiteGrid,
+  assignments: MyAssignments,
+}
 
 export default function App() {
   const [view, setView] = useState('map')
+  const { selectedSite, clearSelection } = useSelectedSite()
+
+  const ActiveView = VIEW_COMPONENTS[view]
 
   return (
     <div className="flex h-screen w-screen flex-col bg-gray-50">
@@ -38,8 +51,12 @@ export default function App() {
       </header>
 
       <main className="min-h-0 flex-1 p-4">
-        {view === 'map' ? <SiteMap /> : <SiteGrid />}
+        <ActiveView />
       </main>
+
+      {selectedSite && (
+        <SiteDetailPanel site={selectedSite} onClose={clearSelection} />
+      )}
     </div>
   )
 }

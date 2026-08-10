@@ -25,6 +25,17 @@ export const COLUMNS = [
     cellClassName: 'font-medium text-gray-900',
   },
   {
+    key: 'address',
+    label: 'Address',
+    type: 'text',
+    sortValue: (site) => site.address,
+    format: (site) => formatText(site.address),
+    // Addresses are long and a few carry two locations in one cell; truncate
+    // and expose the full text as a tooltip rather than blowing out the row.
+    cellClassName: 'max-w-[20rem] truncate',
+    title: (site) => site.address,
+  },
+  {
     key: 'branch',
     label: 'Branch',
     type: 'text',
