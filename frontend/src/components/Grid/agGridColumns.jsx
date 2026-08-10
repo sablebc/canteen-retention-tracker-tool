@@ -15,6 +15,7 @@ import {
   getRepInitials,
   isBlank,
 } from '../../lib/sites'
+import { RatingCell } from '../StarRating'
 
 const formatCurrencyCell = (params) =>
   isBlank(params.value) ? '' : formatCurrency(params.value)
@@ -85,8 +86,8 @@ export const SITE_COLUMN_DEFS = [
   latestCallColumn('q1', 'Q1', 'q1_last_order_feedback', { width: 180 }),
   latestCallColumn('q2', 'Q2', 'q2_working_well', { width: 180 }),
   latestCallColumn('rating', 'Rating', 'rating', {
-    width: 90,
-    valueFormatter: (params) => (isBlank(params.value) ? '' : `${params.value}/5`),
+    width: 110,
+    cellRenderer: RatingCell,
   }),
   latestCallColumn('q4', 'Q4', 'q4_could_improve', { width: 180 }),
   latestCallColumn('call_duration', 'Call Duration', 'duration_minutes', {

@@ -20,10 +20,16 @@ const INITIAL_CENTER = [-98.5, 39.8]
 const INITIAL_ZOOM = 2
 const MAX_PITCH = 80
 
-// Color comes from the site's category, applied as an inline style.
-const MARKER_CLASSES =
-  'w-4 h-4 rounded-full border-2 border-white shadow-md ' +
-  'cursor-pointer hover:scale-125 transition-transform'
+// The marker is two elements: a fixed-size wrapper that MapLibre positions
+// (it must never be scaled — MapLibre positions it with an inline transform,
+// and scaling the same element multiplies that translation, so the marker
+// would shift away from the cursor on hover), and an inner dot that grows on
+// hover around its own centre. Color comes from the site's category, applied
+// as an inline style on the dot.
+const MARKER_WRAPPER_CLASSES = 'h-4 w-4 cursor-pointer'
+const MARKER_DOT_CLASSES =
+  'h-full w-full origin-center rounded-full border-2 border-white shadow-md ' +
+  'transition-transform hover:scale-125'
 
 function hasCoordinates(site) {
   return typeof site.latitude === 'number' && typeof site.longitude === 'number'
@@ -91,8 +97,13 @@ export default function SiteMap() {
       const categoryId = categorizeSite(site, appCalledSiteIds)
 
       const element = document.createElement('div')
-      element.className = MARKER_CLASSES
-      element.style.backgroundColor = CATEGORY_COLORS[categoryId]
+      element.className = MARKER_WRAPPER_CLASSES
+
+      const dot = document.createElement('div')
+      dot.className = MARKER_DOT_CLASSES
+      dot.style.backgroundColor = CATEGORY_COLORS[categoryId]
+      element.appendChild(dot)
+
       // One click on a marker opens the detail panel — no popup in between.
       element.addEventListener('click', (event) => {
         event.stopPropagation()

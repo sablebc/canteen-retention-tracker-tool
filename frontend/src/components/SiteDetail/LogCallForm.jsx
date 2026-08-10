@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { createCall } from '../../api/client'
+import { Star } from '../StarRating'
 
 /** Until auth lands, every call is logged as this rep. */
 const DEFAULT_REP_INITIALS = 'BC'
@@ -152,25 +153,24 @@ export default function LogCallForm({ siteId, onLogged, onCancel }) {
         <legend className="mb-1 block text-sm font-medium text-gray-700">
           Q3 · Rating
         </legend>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-0.5">
           {RATINGS.map((value) => (
             <button
               key={value}
               type="button"
               onClick={() =>
+                // Clicking the third star means "3"; clicking the current
+                // rating again clears it.
                 setForm((current) => ({
                   ...current,
                   rating: current.rating === String(value) ? '' : String(value),
                 }))
               }
               aria-pressed={form.rating === String(value)}
-              className={`h-8 w-8 rounded-md border text-sm font-medium transition-colors ${
-                form.rating === String(value)
-                  ? 'border-blue-600 bg-blue-600 text-white'
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'
-              }`}
+              aria-label={`Rate ${value} out of ${TOP_RATING}`}
+              className="rounded p-0.5 transition-transform hover:scale-110 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
-              {value}
+              <Star filled={rating !== null && value <= rating} className="h-6 w-6" />
             </button>
           ))}
           {form.rating !== '' && (

@@ -5,7 +5,11 @@ import { AgGridReact } from 'ag-grid-react'
 import { patchSite } from '../../api/client'
 import { useCalls } from '../../hooks/useCalls'
 import { useSites } from '../../hooks/useSites'
-import { dispatchAssetSelected, dispatchSiteUpdated } from '../../lib/sites'
+import {
+  dispatchAssetSelected,
+  dispatchSiteUpdated,
+  getLatestCallBySite,
+} from '../../lib/sites'
 import { SITE_COLUMN_DEFS } from './agGridColumns'
 
 ModuleRegistry.registerModules([AllCommunityModule])
@@ -48,15 +52,7 @@ export default function SiteGrid() {
   // Row count after the grid's own column filters; null until first render.
   const [displayedCount, setDisplayedCount] = useState(null)
 
-  // Calls arrive newest first, so the first record seen per site is its
-  // most recent call.
-  const latestCallBySite = useMemo(() => {
-    const latest = new Map()
-    calls.forEach((call) => {
-      if (!latest.has(call.site)) latest.set(call.site, call)
-    })
-    return latest
-  }, [calls])
+  const latestCallBySite = useMemo(() => getLatestCallBySite(calls), [calls])
 
   const rowData = useMemo(
     () =>

@@ -1,21 +1,14 @@
 import { useState } from 'react'
 
 import { EM_DASH, formatIsoDate, isAppCall, isBlank } from '../../lib/sites'
+import StarRating from '../StarRating'
 
 const NOTES_PREVIEW_LENGTH = 90
 
-/** Star-style rating readout; the SOP treats anything under 5 as a follow-up. */
+/** Star rating readout, or an em dash when the call carries no rating. */
 function Rating({ value }) {
   if (isBlank(value)) return <span className="text-gray-400">{EM_DASH}</span>
-  return (
-    <span
-      className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-        value < 5 ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-      }`}
-    >
-      {value}/5
-    </span>
-  )
+  return <StarRating value={value} starClassName="h-3.5 w-3.5" />
 }
 
 function hasExpandableDetail(call) {

@@ -25,6 +25,20 @@ export function getAppCalledSiteIds(calls) {
   return new Set(calls.filter(isAppCall).map((call) => call.site))
 }
 
+/**
+ * Map of site ID -> that site's most recent call record.
+ *
+ * Relies on the call list arriving newest first (the API's ordering, which
+ * `useCalls` preserves), so the first record met per site wins.
+ */
+export function getLatestCallBySite(calls) {
+  const latest = new Map()
+  calls.forEach((call) => {
+    if (!latest.has(call.site)) latest.set(call.site, call)
+  })
+  return latest
+}
+
 /** Broadcast a site selection so sibling panels can react without prop drilling. */
 export function dispatchAssetSelected(site) {
   window.dispatchEvent(new CustomEvent('assetSelected', { detail: site }))

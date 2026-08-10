@@ -3,10 +3,14 @@ import { useMemo, useState } from 'react'
 import { useCalls } from '../../hooks/useCalls'
 import { useSites } from '../../hooks/useSites'
 import {
+  EM_DASH,
   MY_REP_INITIALS,
   dispatchAssetSelected,
   getAppCalledSiteIds,
+  getLatestCallBySite,
+  isBlank,
 } from '../../lib/sites'
+import StarRating from '../StarRating'
 import SiteTable from '../Grid/SiteTable'
 import { COLUMNS } from '../Grid/columns'
 import { ASC, nextSortState, sortSites } from '../Grid/sorting'
@@ -26,8 +30,22 @@ const CALL_STATE_COLUMN = {
   cellClassName: 'font-medium',
 }
 
+/** The most recent call's 1-5 rating, shown as stars like everywhere else. */
+const RATING_COLUMN = {
+  key: 'latest_rating',
+  label: 'Rating',
+  type: 'number',
+  sortValue: (site) => site.latest_rating,
+  format: (site) =>
+    isBlank(site.latest_rating) ? (
+      EM_DASH
+    ) : (
+      <StarRating value={site.latest_rating} starClassName="h-3.5 w-3.5" />
+    ),
+}
+
 // The call-state column leads, since it is what this view is organised around.
-const ASSIGNMENT_COLUMNS = [CALL_STATE_COLUMN, ...COLUMNS]
+const ASSIGNMENT_COLUMNS = [CALL_STATE_COLUMN, RATING_COLUMN, ...COLUMNS]
 
 const SELECT_CLASSES =
   'rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 ' +
@@ -110,6 +128,7 @@ export default function MyAssignments() {
   const [sort, setSort] = useState({ key: 'call_state', direction: ASC })
 
   const calledSiteIds = useMemo(() => getAppCalledSiteIds(calls), [calls])
+  const latestCallBySite = useMemo(() => getLatestCallBySite(calls), [calls])
 
   const myAssignments = useMemo(
     () =>
@@ -118,8 +137,9 @@ export default function MyAssignments() {
         .map((site) => ({
           ...site,
           call_state: calledSiteIds.has(site.id) ? CALLED : PENDING,
+          latest_rating: latestCallBySite.get(site.id)?.rating ?? null,
         })),
-    [sites, calledSiteIds],
+    [sites, calledSiteIds, latestCallBySite],
   )
 
   // Options come from the data so a new branch or status shows up without a
