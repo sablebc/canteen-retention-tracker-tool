@@ -59,6 +59,16 @@ export const SITE_UPDATED_EVENT = 'siteUpdated'
 /** Fired after a call is logged, so the assignments view can recount progress. */
 export const CALL_LOGGED_EVENT = 'callLogged'
 
+/**
+ * Fired after a tracker import replaces the underlying data, so every view
+ * refetches instead of showing figures from before the refresh.
+ */
+export const DATA_REFRESHED_EVENT = 'dataRefreshed'
+
+export function dispatchDataRefreshed() {
+  window.dispatchEvent(new CustomEvent(DATA_REFRESHED_EVENT))
+}
+
 export function dispatchSiteUpdated(site) {
   window.dispatchEvent(new CustomEvent(SITE_UPDATED_EVENT, { detail: site }))
 }

@@ -6,6 +6,7 @@
  * binds to a plain field. That keeps sorting, filtering, and CSV export
  * working without a value getter running 905 times per interaction.
  */
+import { outcomeShortLabel } from '../../lib/outcomes'
 import { formatCurrency, formatIsoDate, isBlank } from '../../lib/sites'
 import { RatingCell } from '../StarRating'
 
@@ -56,6 +57,18 @@ export const SITE_COLUMN_DEFS = [
   { field: 'branch', headerName: 'Branch', width: 118 },
   { field: 'lob', headerName: 'LOB', width: 118, ...EDITABLE },
   { field: 'account_status', headerName: 'Account Status', width: 118 },
+  {
+    // Not in the original 20-column handoff: the row colour alone cannot be
+    // read by everyone, and two legend categories are uncoloured, so the
+    // classification is also spelled out.
+    field: 'call_outcome',
+    headerName: 'Call Outcome',
+    width: 140,
+    valueFormatter: (params) => outcomeShortLabel(params.value),
+    filterParams: {
+      valueFormatter: (params) => outcomeShortLabel(params.value),
+    },
+  },
   { field: 'contact_name', headerName: 'Contact Name', width: 140, ...EDITABLE },
   {
     field: 'phone_number',

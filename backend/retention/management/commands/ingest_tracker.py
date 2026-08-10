@@ -15,6 +15,7 @@ over the same export updates in place instead of duplicating. StatusHistory is
 the deliberate exception — it is append-only, gaining one row per site per run
 so status changes stay queryable as a trend.
 """
+import json
 import re
 from collections import Counter
 from dataclasses import dataclass, field
@@ -164,6 +165,45 @@ class IngestStats:
         """Record an example value, keeping only the first few per category."""
         if len(bucket) < MAX_REPORTED_EXAMPLES:
             bucket.append(value)
+
+    @property
+    def warning_buckets(self) -> dict[str, list[str]]:
+        """Every data-quality bucket, keyed by a stable machine-readable name."""
+        return {
+            "unparseable_dates": self.unparseable_dates,
+            "ambiguous_dates": self.ambiguous_dates,
+            "bad_ratings": self.bad_ratings,
+            "unparseable_durations": self.unparseable_durations,
+            "duplicate_site_ids": self.duplicate_site_ids,
+            "synthetic_collisions": self.synthetic_collisions,
+            "invalid_rep_values": self.invalid_rep_values,
+            "rejected_native_ids": self.rejected_native_ids,
+        }
+
+    def to_summary(self) -> dict:
+        """A JSON-serialisable view of the run, for the import API."""
+        warnings = {name: values for name, values in self.warning_buckets.items()
+                    if values}
+        return {
+            "rows_scanned": self.rows_scanned,
+            "sites_created": self.sites_created,
+            "sites_updated": self.sites_updated,
+            "revenue_created": self.revenue_created,
+            "revenue_updated": self.revenue_updated,
+            "reps_created": self.reps_created,
+            "reps_updated": self.reps_updated,
+            "calls_created": self.calls_created,
+            "calls_updated": self.calls_updated,
+            "status_history_appended": self.status_history_appended,
+            "group_headers_skipped": self.group_headers_skipped,
+            "blank_skipped": self.blank_skipped,
+            "native_id_rows": self.native_id_rows,
+            "synthetic_id_rows": self.synthetic_id_rows,
+            "rep_breakdown": dict(self.rep_breakdown),
+            "status_breakdown": dict(self.status_breakdown),
+            "warning_count": sum(len(values) for values in warnings.values()),
+            "warnings": warnings,
+        }
 
 
 def _normalize_header(value) -> str:
@@ -435,14 +475,15 @@ def _upsert_call(site: Site, entry: TrackerRow, stats: IngestStats) -> None:
     """Persist the row's call block, skipping rows with no real conversation.
 
     The tracker holds at most one call block per site and carries no call date,
-    so (site, call_date=None) is the natural upsert key for re-runs.
+    so (site, source=import, call_date=None) is the natural upsert key for
+    re-runs. Restricting the lookup to imported rows is what keeps a call
+    logged in this tool from being overwritten by a later ingest.
     """
     if not entry.has_call_content:
         stats.calls_skipped_empty += 1
         return
 
     defaults = {
-        "source": CallRecord.Source.IMPORT,
         "rep_initials": truncate(entry.rep_initials, 16),
         "duration_minutes": entry.duration_minutes,
         "q1_last_order_feedback": entry.q1,
@@ -452,10 +493,17 @@ def _upsert_call(site: Site, entry: TrackerRow, stats: IngestStats) -> None:
         "notes": entry.notes,
         "actions_required": entry.actions_required,
     }
-    existing = CallRecord.objects.filter(site=site, call_date=None).order_by("pk")
+    existing = CallRecord.objects.filter(
+        site=site, source=CallRecord.Source.IMPORT, call_date=None
+    ).order_by("pk")
     first = existing.first()
     if first is None:
-        CallRecord.objects.create(site=site, call_date=None, **defaults)
+        CallRecord.objects.create(
+            site=site,
+            source=CallRecord.Source.IMPORT,
+            call_date=None,
+            **defaults,
+        )
         stats.calls_created += 1
         return
 
@@ -477,10 +525,19 @@ class Command(BaseCommand):
             action="store_true",
             help="Parse and report counts without persisting anything.",
         )
+        parser.add_argument(
+            "--json-summary",
+            action="store_true",
+            help=(
+                "Emit the run summary as a single JSON object instead of the "
+                "human-readable report. Used by the import API."
+            ),
+        )
 
     def handle(self, *args, **options) -> None:
         path = Path(options["xlsx_path"]).expanduser()
         dry_run = options["dry_run"]
+        as_json = options["json_summary"]
 
         if not path.is_file():
             raise CommandError(f"File not found: {path}")
@@ -496,6 +553,13 @@ class Command(BaseCommand):
             self._load(rows, stats, observed_date)
             if dry_run:
                 transaction.set_rollback(True)
+
+        if as_json:
+            summary = stats.to_summary()
+            summary["dry_run"] = dry_run
+            summary["source_file"] = path.name
+            self.stdout.write(json.dumps(summary))
+            return
 
         self._report(stats, path, observed_date, dry_run)
 

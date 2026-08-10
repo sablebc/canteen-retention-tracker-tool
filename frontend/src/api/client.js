@@ -40,6 +40,9 @@ function describeErrorBody(body, status) {
  */
 async function request(path, options = {}) {
   const url = `${API_BASE_URL}${path}`
+  // FormData carries its own multipart content type, including the boundary
+  // the browser generates; setting the header by hand would corrupt it.
+  const isFormData = options.body instanceof FormData
 
   let response
   try {
@@ -47,7 +50,9 @@ async function request(path, options = {}) {
       ...options,
       headers: {
         Accept: 'application/json',
-        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.body && !isFormData
+          ? { 'Content-Type': 'application/json' }
+          : {}),
         ...options.headers,
       },
     })
@@ -106,4 +111,24 @@ export function createCall(call) {
 /** Fetch the revenue-risk scores. */
 export function getRevenueRisk() {
   return request('/analysis/revenue-risk-score/')
+}
+
+/** Fetch the tracker import history, newest first. */
+export function getImportLogs() {
+  return request('/retention/imports/')
+}
+
+/**
+ * Upload a tracker .xlsx and re-run the ingest over it.
+ *
+ * Sent as multipart form data, so `Content-Type` is deliberately left unset:
+ * the browser has to supply it along with the multipart boundary.
+ *
+ * @param {File} file The .xlsx export chosen by the user.
+ * @returns {Promise<object>} The ingest summary.
+ */
+export function importTracker(file) {
+  const body = new FormData()
+  body.append('file', file)
+  return request('/retention/import/', { method: 'POST', body })
 }

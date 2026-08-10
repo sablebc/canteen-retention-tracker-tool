@@ -29,6 +29,17 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").sp
 # Directory holding the R analysis scripts, a sibling of backend/.
 R_SCRIPTS_DIR = BASE_DIR.parent / "r"
 
+# Where tracker exports uploaded through the import endpoint are stored before
+# being ingested. Defaults to the repo's data/raw/ alongside manual drops.
+TRACKER_UPLOAD_DIR = Path(
+    os.environ.get("TRACKER_UPLOAD_DIR", BASE_DIR.parent / "data" / "raw")
+)
+
+# Largest tracker export the import endpoint will accept, in bytes.
+TRACKER_UPLOAD_MAX_BYTES = int(
+    os.environ.get("TRACKER_UPLOAD_MAX_BYTES", 25 * 1024 * 1024)
+)
+
 
 # Application definition
 

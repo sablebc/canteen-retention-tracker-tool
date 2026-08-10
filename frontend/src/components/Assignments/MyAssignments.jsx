@@ -3,59 +3,28 @@ import { useMemo, useState } from 'react'
 import { useCalls } from '../../hooks/useCalls'
 import { useSites } from '../../hooks/useSites'
 import {
-  EM_DASH,
-  MY_REP_INITIALS,
+  CURRENT_REP,
   dispatchAssetSelected,
   getAppCalledSiteIds,
+  getLatestAnnualRevenue,
   getLatestCallBySite,
-  isBlank,
 } from '../../lib/sites'
-import StarRating from '../StarRating'
-import SiteTable from '../Grid/SiteTable'
-import { COLUMNS } from '../Grid/columns'
+import OutcomeLegend from '../OutcomeLegend'
 import { ASC, nextSortState, sortSites } from '../Grid/sorting'
+import CallsTable from './CallsTable'
+import { CALL_COLUMNS } from './callColumns'
 
 const CALLED = 'Called'
 const PENDING = 'Pending'
 
-/** Pending sorts before Called, which is the point of the view. */
-const CALL_STATE_ORDER = { [PENDING]: 0, [CALLED]: 1 }
-
-const CALL_STATE_COLUMN = {
-  key: 'call_state',
-  label: 'Status',
-  type: 'number',
-  sortValue: (site) => CALL_STATE_ORDER[site.call_state],
-  format: (site) => (site.call_state === CALLED ? '[Called]' : '[Pending]'),
-  cellClassName: 'font-medium',
-}
-
-/** The most recent call's 1-5 rating, shown as stars like everywhere else. */
-const RATING_COLUMN = {
-  key: 'latest_rating',
-  label: 'Rating',
-  type: 'number',
-  sortValue: (site) => site.latest_rating,
-  format: (site) =>
-    isBlank(site.latest_rating) ? (
-      EM_DASH
-    ) : (
-      <StarRating value={site.latest_rating} starClassName="h-3.5 w-3.5" />
-    ),
-}
-
-// The call-state column leads, since it is what this view is organised around.
-const ASSIGNMENT_COLUMNS = [CALL_STATE_COLUMN, RATING_COLUMN, ...COLUMNS]
-
 const SELECT_CLASSES =
-  'rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 ' +
-  'shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500'
+  'h-6 border border-line bg-white px-1.5 text-[11px] focus:border-accent ' +
+  'focus:outline focus:outline-1 focus:outline-accent'
 
-/** Labels for sites missing a value, kept in step with the status badges. */
-const NO_BRANCH = 'No branch'
-const NO_STATUS = 'Unknown'
+const FILTER_LABEL_CLASSES =
+  'text-[11px] font-semibold uppercase tracking-[0.06em] text-muted'
 
-/** Count sites per key, returned as [key, count] pairs, biggest first. */
+/** Count sites per key, biggest first, for the breakdown line. */
 function countBy(sites, getKey) {
   const counts = new Map()
   sites.forEach((site) => {
@@ -67,56 +36,16 @@ function countBy(sites, getKey) {
   )
 }
 
-function ProgressBar({ completed, total }) {
-  const percent = total === 0 ? 0 : Math.round((completed / total) * 100)
-
-  return (
-    <div className="border-b border-gray-200 bg-white px-3 py-2.5">
-      <div className="mb-1.5 flex items-baseline justify-between">
-        <span className="text-sm font-medium text-gray-900">
-          {completed} / {total} calls completed
-        </span>
-        <span className="text-sm text-gray-500 tabular-nums">{percent}%</span>
-      </div>
-      <div
-        role="progressbar"
-        aria-valuenow={completed}
-        aria-valuemin={0}
-        aria-valuemax={total}
-        aria-label="Calls completed"
-        className="h-2 w-full overflow-hidden rounded-full bg-gray-200"
-      >
-        <div
-          className="h-full rounded-full bg-emerald-500 transition-[width] duration-300"
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-/** One compact `label: n | label: n | …` summary line. */
-function BreakdownLine({ label, counts }) {
-  const text = counts.map(([key, count]) => `${key}: ${count}`).join('  |  ')
-  return (
-    <p className="truncate text-xs text-gray-600" title={text}>
-      <span className="font-semibold uppercase tracking-wide text-gray-400">
-        {label}
-      </span>{' '}
-      <span className="tabular-nums">{text}</span>
-    </p>
-  )
+function breakdownText(counts) {
+  return counts.map(([key, count]) => `${key} ${count}`).join(' · ')
 }
 
 /**
- * The current rep's assigned sites, with call progress.
+ * My Calls — the current rep's assigned sites and their call progress.
  *
- * "Called" means the site has at least one call logged through this tool
- * (source "app"); rows carried over from the tracker import don't count.
- * Called rows are hidden by default so the list reads as a to-do; a toggle
- * brings them back. The branch/status dropdowns narrow the list, and the
- * breakdown lines summarise whatever the dropdowns currently select
- * (regardless of the called toggle).
+ * "Called" means at least one call logged through this tool (source "app");
+ * rows carried over from the tracker import do not count. Called rows are
+ * hidden by default so the list reads as a to-do list.
  */
 export default function MyAssignments() {
   const { sites, isLoading: isLoadingSites, loadError } = useSites()
@@ -133,17 +62,18 @@ export default function MyAssignments() {
   const myAssignments = useMemo(
     () =>
       sites
-        .filter((site) => site.rep_assignment?.rep_initials === MY_REP_INITIALS)
+        .filter(
+          (site) => site.rep_assignment?.rep_initials === CURRENT_REP.initials,
+        )
         .map((site) => ({
           ...site,
           call_state: calledSiteIds.has(site.id) ? CALLED : PENDING,
-          latest_rating: latestCallBySite.get(site.id)?.rating ?? null,
+          annual_revenue: getLatestAnnualRevenue(site),
+          last_call_date: latestCallBySite.get(site.id)?.call_date ?? null,
         })),
     [sites, calledSiteIds, latestCallBySite],
   )
 
-  // Options come from the data so a new branch or status shows up without a
-  // code change.
   const branchOptions = useMemo(
     () =>
       [...new Set(myAssignments.map((site) => site.branch).filter(Boolean))].sort(
@@ -159,9 +89,9 @@ export default function MyAssignments() {
     [myAssignments],
   )
 
-  // The dropdown-filtered list; the breakdown summarises this, so it keeps
-  // counting called sites even while the toggle hides them from the table.
-  const filteredAssignments = useMemo(
+  // The dropdown-filtered list. The breakdown and legend summarise this, so
+  // they keep counting called sites even while the toggle hides them.
+  const filtered = useMemo(
     () =>
       myAssignments.filter(
         (site) =>
@@ -171,38 +101,39 @@ export default function MyAssignments() {
     [myAssignments, branch, status],
   )
 
-  const branchBreakdown = useMemo(
-    () => countBy(filteredAssignments, (site) => site.branch || NO_BRANCH),
-    [filteredAssignments],
-  )
-  const statusBreakdown = useMemo(
-    () => countBy(filteredAssignments, (site) => site.account_status || NO_STATUS),
-    [filteredAssignments],
-  )
-
   const visibleSites = useMemo(() => {
     const shown = showCalled
-      ? filteredAssignments
-      : filteredAssignments.filter((site) => site.call_state === PENDING)
+      ? filtered
+      : filtered.filter((site) => site.call_state === PENDING)
 
-    // Default view: pending first, then by account status. Once the user picks
-    // a column, that choice wins outright.
+    // Default view: pending first, then by account status. Once the user
+    // picks a column, that choice wins outright.
     if (sort.key === 'call_state') {
-      const byStatus = sortSites(shown, ASSIGNMENT_COLUMNS, {
+      const byStatus = sortSites(shown, CALL_COLUMNS, {
         key: 'account_status',
         direction: ASC,
       })
-      return sortSites(byStatus, ASSIGNMENT_COLUMNS, sort)
+      return sortSites(byStatus, CALL_COLUMNS, sort)
     }
-    return sortSites(shown, ASSIGNMENT_COLUMNS, sort)
-  }, [filteredAssignments, showCalled, sort])
+    return sortSites(shown, CALL_COLUMNS, sort)
+  }, [filtered, showCalled, sort])
 
+  const total = myAssignments.length
   const completed = myAssignments.filter((site) => site.call_state === CALLED).length
-  const hiddenCalled = filteredAssignments.length - visibleSites.length
+  const percent = total === 0 ? 0 : Math.round((completed / total) * 100)
+
+  const branchCounts = useMemo(
+    () => countBy(filtered, (site) => site.branch || 'No branch'),
+    [filtered],
+  )
+  const statusCounts = useMemo(
+    () => countBy(filtered, (site) => site.account_status || 'Unknown'),
+    [filtered],
+  )
 
   if (isLoadingSites || isLoadingCalls) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-500">
+      <div className="flex h-full items-center justify-center text-muted">
         Loading assignments…
       </div>
     )
@@ -211,7 +142,7 @@ export default function MyAssignments() {
   if (loadError) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-800">
+        <p className="border border-line bg-white px-3 py-2 text-[#8A1616]">
           Could not load sites: {loadError}
         </p>
       </div>
@@ -219,15 +150,41 @@ export default function MyAssignments() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
-      <ProgressBar completed={completed} total={myAssignments.length} />
+    <div className="flex min-h-0 flex-1 flex-col bg-white">
+      <div className="flex-none border-b border-toolbar-line bg-white px-3.5 pb-2.5 pt-3">
+        <div className="mb-[7px] flex items-baseline gap-2.5">
+          <span className="text-[13px] font-semibold text-teal-header">My Calls</span>
+          <span className="text-[11px] text-muted tabular-nums">
+            {completed} / {total} calls completed
+          </span>
+          <span className="text-[11px] text-muted tabular-nums">{percent}%</span>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-gray-200 bg-white px-3 py-2">
-        <label className="flex items-center gap-1.5 text-sm text-gray-600">
-          <span className="sr-only">Filter by branch</span>
+        <div
+          role="progressbar"
+          aria-valuenow={completed}
+          aria-valuemin={0}
+          aria-valuemax={total}
+          aria-label="Calls completed"
+          className="h-2.5 max-w-[620px] border border-line-light bg-surface"
+        >
+          <div className="h-full bg-accent" style={{ width: `${percent}%` }} />
+        </div>
+
+        <div className="mt-[7px] text-[11px] leading-[1.6] text-muted">
+          <span className="font-semibold">Branch:</span> {breakdownText(branchCounts)}
+          <span className="px-2 text-toolbar-line">|</span>
+          <span className="font-semibold">Status:</span> {breakdownText(statusCounts)}
+        </div>
+      </div>
+
+      <div className="flex h-9 flex-none items-center gap-3.5 border-b border-toolbar-line bg-surface px-3.5">
+        <label className="flex items-center gap-1.5">
+          <span className={FILTER_LABEL_CLASSES}>Branch</span>
           <select
             value={branch}
             onChange={(event) => setBranch(event.target.value)}
+            aria-label="Filter by branch"
             className={SELECT_CLASSES}
           >
             <option value="">All branches</option>
@@ -239,11 +196,12 @@ export default function MyAssignments() {
           </select>
         </label>
 
-        <label className="flex items-center gap-1.5 text-sm text-gray-600">
-          <span className="sr-only">Filter by account status</span>
+        <label className="flex items-center gap-1.5">
+          <span className={FILTER_LABEL_CLASSES}>Account Status</span>
           <select
             value={status}
             onChange={(event) => setStatus(event.target.value)}
+            aria-label="Filter by account status"
             className={SELECT_CLASSES}
           >
             <option value="">All statuses</option>
@@ -255,53 +213,31 @@ export default function MyAssignments() {
           </select>
         </label>
 
-        {(branch !== '' || status !== '') && (
-          <button
-            type="button"
-            onClick={() => {
-              setBranch('')
-              setStatus('')
-            }}
-            className="rounded-md px-2 py-1 text-sm text-blue-700 hover:bg-blue-50"
-          >
-            Clear filters
-          </button>
-        )}
-
-        <label className="flex shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap text-sm text-gray-700">
+        <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-[11px]">
           <input
             type="checkbox"
             checked={showCalled}
             onChange={(event) => setShowCalled(event.target.checked)}
-            className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-[13px] w-[13px] flex-none accent-[#7AC143]"
           />
           Show already called
-          {!showCalled && hiddenCalled > 0 && (
-            <span className="text-gray-400">({hiddenCalled} hidden)</span>
-          )}
         </label>
 
-        <span className="ml-auto whitespace-nowrap text-sm text-gray-500 tabular-nums">
-          {filteredAssignments.length === myAssignments.length
-            ? `${myAssignments.length} sites`
-            : `${filteredAssignments.length} of ${myAssignments.length} sites`}
+        <span className="ml-auto whitespace-nowrap text-[11px] text-muted tabular-nums">
+          {visibleSites.length} of {total} shown
         </span>
       </div>
 
-      <div className="space-y-0.5 border-b border-gray-200 bg-gray-50 px-3 py-1.5">
-        <BreakdownLine label="Branch" counts={branchBreakdown} />
-        <BreakdownLine label="Status" counts={statusBreakdown} />
-      </div>
+      <OutcomeLegend sites={filtered} label={`${CURRENT_REP.initials} outcomes`} />
 
       {callsError && (
-        <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p className="flex-none border-b border-toolbar-line bg-[#FFF8E6] px-2.5 py-1.5 text-[11px] text-warning-text">
           Call history unavailable, so every site shows as pending: {callsError}
         </p>
       )}
 
-      <SiteTable
+      <CallsTable
         sites={visibleSites}
-        columns={ASSIGNMENT_COLUMNS}
         sort={sort}
         onSortChange={(key) => setSort((current) => nextSortState(current, key))}
         onRowClick={dispatchAssetSelected}

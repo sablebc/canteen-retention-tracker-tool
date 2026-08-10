@@ -2,16 +2,20 @@
 from django.utils import timezone
 from rest_framework import serializers
 
-from .models import CallRecord, RepAssignment, RevenueSnapshot, Site
+from .models import CallRecord, ImportLog, RepAssignment, RevenueSnapshot, Site
 
 # The only Site fields a user may edit from the detail panel. Everything else
 # on a Site comes from the tracker export and is overwritten on the next
 # ingest, so allowing edits elsewhere would silently lose the change.
+#
+# ``call_outcome`` is the exception that is *not* tracker-owned: it is this
+# tool's own classification and survives an ingest run.
 EDITABLE_SITE_FIELDS = (
     "method_of_ordering",
     "contact_name",
     "lob",
     "phone_number",
+    "call_outcome",
 )
 
 
@@ -49,6 +53,7 @@ class SiteSerializer(serializers.ModelSerializer):
             "contact_name",
             "method_of_ordering",
             "account_status",
+            "call_outcome",
             "last_order_date",
             "latitude",
             "longitude",
@@ -80,6 +85,20 @@ class SiteUpdateSerializer(serializers.ModelSerializer):
                 }
             )
         return attrs
+
+
+class ImportLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImportLog
+        fields = [
+            "id",
+            "filename",
+            "imported_at",
+            "sites_created",
+            "sites_updated",
+            "warning_count",
+            "summary",
+        ]
 
 
 class CallRecordSerializer(serializers.ModelSerializer):

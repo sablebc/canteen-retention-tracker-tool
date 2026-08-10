@@ -10,8 +10,9 @@ import {
   getLatestAnnualRevenue,
   getLatestF25Revenue,
 } from '../../lib/sites'
-import { statusClasses } from '../Grid/columns'
+import { statusClasses } from '../../lib/statusStyles'
 import CallHistory from './CallHistory'
+import CallOutcomeField from './CallOutcomeField'
 import EditableField from './EditableField'
 import LogCallForm from './LogCallForm'
 
@@ -195,6 +196,13 @@ export default function SiteDetailPanel({ site, onClose }) {
               ))}
             </div>
           </section>
+
+          <div className="-mx-3.5 mt-4 border-t border-toolbar-line">
+            <CallOutcomeField
+              value={current.call_outcome}
+              onSave={(value) => saveField('call_outcome', value)}
+            />
+          </div>
 
           <section className="mt-4">
             <div className="mb-2 flex items-center justify-between">

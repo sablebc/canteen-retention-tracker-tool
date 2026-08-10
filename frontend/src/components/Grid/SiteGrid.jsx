@@ -7,6 +7,7 @@ import { useCalls } from '../../hooks/useCalls'
 import { useRevenueRisk } from '../../hooks/useRevenueRisk'
 import { useSites } from '../../hooks/useSites'
 import { splitCityProvince } from '../../lib/address'
+import { OUTCOME_COLORS } from '../../lib/outcomes'
 import {
   CURRENT_REP,
   dispatchAssetSelected,
@@ -18,6 +19,7 @@ import {
   getRepInitials,
 } from '../../lib/sites'
 import { FONT_STACK, HEADER_HEIGHT, ROW_HEIGHT, TOKENS } from '../../lib/tokens'
+import OutcomeLegend from '../OutcomeLegend'
 import { COLUMN_COUNT, PINNED_COUNT, SITE_COLUMN_DEFS } from './agGridColumns'
 import GridToolbar from './GridToolbar'
 
@@ -176,6 +178,13 @@ export default function SiteGrid() {
     gridRef.current?.api.exportDataAsCsv({ fileName: 'canteen-sites.csv' })
   }, [])
 
+  // Row colour follows the tracker's outcome legend; unclassified rows keep
+  // the theme's alternating background.
+  const getRowStyle = useCallback((params) => {
+    const background = OUTCOME_COLORS[params.data?.call_outcome]
+    return background ? { background } : undefined
+  }, [])
+
   if (isLoadingSites || isLoadingCalls) {
     return (
       <div className="flex h-full items-center justify-center text-muted">
@@ -215,6 +224,8 @@ export default function SiteGrid() {
         onExport={exportCsv}
       />
 
+      <OutcomeLegend sites={sites} label="Outcomes" />
+
       {callsError && (
         <p className="flex-none border-b border-toolbar-line bg-[#FFF8E6] px-2.5 py-1.5 text-[11px] text-warning-text">
           Call history unavailable, so the call columns are empty: {callsError}
@@ -241,6 +252,7 @@ export default function SiteGrid() {
           quickFilterText={search}
           singleClickEdit
           stopEditingWhenCellsLoseFocus
+          getRowStyle={getRowStyle}
           onCellValueChanged={handleCellValueChanged}
           onCellClicked={handleCellClicked}
           onModelUpdated={(event) =>

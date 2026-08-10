@@ -3,6 +3,24 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
+class CallOutcome(models.TextChoices):
+    """How a site was classified after call attempts.
+
+    These mirror the colour-coded legend in rows 2-9 of the tracker
+    spreadsheet. They are set in this tool rather than read from the export,
+    so an ingest run must leave them untouched.
+    """
+
+    NO_ASSETS = "no_assets", "No assets/route dormant"
+    COMPLETED_SURVEY = "completed_survey", "Completed survey"
+    INVALID_CONTACT = "invalid_contact", "Missing/invalid contact details"
+    FOLLOW_UP = "follow_up", "Follow up/Issue (Seed ticket or email the branch)"
+    AWAITING_EMAIL = "awaiting_email", "Awaiting email response"
+    FRENCH_ACCOUNT = "french_account", "French accounts"
+    LEFT_VM = "left_vm", "Left VM/call back"
+    TEMP_CLOSED = "temp_closed", "Temp closed due to season"
+
+
 class Site(models.Model):
     """A canteen/vending site tracked for retention purposes.
 
@@ -26,6 +44,11 @@ class Site(models.Model):
     # normalisation rule can be diagnosed and re-run without a fresh export.
     raw_account_status = models.CharField(max_length=255, blank=True)
     last_order_date = models.DateField(null=True, blank=True)
+    # Owned by this tool, not the tracker export: blank until a rep classifies
+    # the site, and deliberately excluded from the ingest command's writes.
+    call_outcome = models.CharField(
+        max_length=32, choices=CallOutcome.choices, blank=True, default=""
+    )
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
 
@@ -116,6 +139,31 @@ class CallRecord(models.Model):
 
     def __str__(self):
         return f"Call {self.site.site_id} ({self.call_date})"
+
+
+class ImportLog(models.Model):
+    """One record per tracker import run, newest first.
+
+    Exists so the UI can answer "when was this data last refreshed?" without
+    re-reading the spreadsheet, and so a bad import can be traced back to the
+    file that caused it.
+    """
+
+    filename = models.CharField(max_length=255)
+    stored_path = models.CharField(max_length=512, blank=True)
+    imported_at = models.DateTimeField(auto_now_add=True)
+    sites_created = models.IntegerField(default=0)
+    sites_updated = models.IntegerField(default=0)
+    warning_count = models.IntegerField(default=0)
+    # The command's full machine-readable summary, kept verbatim so new
+    # counters show up in the UI without another migration.
+    summary = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-imported_at"]
+
+    def __str__(self):
+        return f"{self.filename} @ {self.imported_at:%Y-%m-%d %H:%M}"
 
 
 class StatusHistory(models.Model):

@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import MyAssignments from './components/Assignments/MyAssignments'
 import SiteGrid from './components/Grid/SiteGrid'
+import ImportControl from './components/Import/ImportControl'
 import SiteMap from './components/Map/SiteMap'
 import SiteDetailPanel from './components/SiteDetail/SiteDetailPanel'
 import { useSelectedSite } from './hooks/useSelectedSite'
@@ -49,8 +50,10 @@ function AppHeader({ view, onViewChange }) {
       </nav>
 
       <div className="ml-auto flex items-center gap-4 px-4 text-[11px] text-header-meta">
-        <span className="whitespace-nowrap">{CYCLE_LABEL}</span>
+        <ImportControl />
         <span className="h-[18px] w-px flex-none bg-teal-hairline" />
+        <span className="hidden whitespace-nowrap xl:inline">{CYCLE_LABEL}</span>
+        <span className="hidden h-[18px] w-px flex-none bg-teal-hairline xl:block" />
         <span className="flex items-center gap-[7px]">
           <span className="flex h-[22px] w-[22px] flex-none items-center justify-center bg-accent text-[10px] font-bold text-teal-deep">
             {CURRENT_REP.initials}
