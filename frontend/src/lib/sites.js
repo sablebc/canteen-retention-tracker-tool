@@ -13,6 +13,15 @@ export const EM_DASH = '—'
 export const MY_REP_INITIALS = 'BC'
 
 /**
+ * The signed-in rep, shown in the header and used as the call-logging author.
+ * `displayName` is a placeholder until auth supplies the real one.
+ */
+export const CURRENT_REP = { initials: MY_REP_INITIALS, displayName: 'Rep BC' }
+
+/** Every rep in the tracker, in the order the filters list them. */
+export const REP_ORDER = ['BC', 'AJ', 'CM', 'WH']
+
+/**
  * True for calls logged through this tool, as opposed to rows carried over
  * from the tracker import. Only app-sourced calls count as "called".
  */
@@ -104,6 +113,27 @@ export function getLatestAnnualRevenue(site) {
 /** F25 revenue from the most recent snapshot that records one. */
 export function getLatestF25Revenue(site) {
   return getLatestRevenue(site, 'f25_revenue')
+}
+
+/**
+ * The most recent revenue-snapshot date across every site.
+ *
+ * Each ingest run writes one snapshot per site, so the newest snapshot date
+ * is when the tracker was last imported — what the grid's status bar reports
+ * as "Last sync". Returns null before any site has a snapshot.
+ */
+export function getLastSyncDate(sites) {
+  let latest = null
+  sites.forEach((site) => {
+    const snapshots = site.revenue_snapshots
+    if (!Array.isArray(snapshots)) return
+    snapshots.forEach(({ snapshot_date: date }) => {
+      if (!isBlank(date) && (latest === null || String(date) > latest)) {
+        latest = String(date)
+      }
+    })
+  })
+  return latest
 }
 
 const CURRENCY_FORMAT = new Intl.NumberFormat('en-CA', {

@@ -1,1 +1,122 @@
 @import "tailwindcss";
+
+/*
+ * Design tokens from the Canteen Retention Tracker handoff.
+ *
+ * Registering them under Tailwind's `--color-*` namespace generates the
+ * matching utilities (`bg-teal-header`, `text-muted`, `border-line`, …), so
+ * components reference tokens by name instead of repeating hex values.
+ */
+@theme {
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  /* Brand */
+  --color-teal-header: #1b3a4b;
+  --color-teal-hairline: #2f5568;
+  --color-teal-deep: #12303e;
+  --color-accent: #7ac143;
+  --color-accent-hover: #6bb033;
+
+  /* Surfaces and text */
+  --color-surface: #f8f9fa;
+  --color-body: #1e293b;
+  --color-muted: #5a6b76;
+  --color-tab-inactive: #b7c8d1;
+  --color-header-meta: #c6d3da;
+  --color-panel-meta: #a9bec9;
+
+  /* Lines */
+  --color-line: #c9d1d7;
+  --color-line-light: #e1e5e8;
+  --color-row-divider: #eaedef;
+  --color-toolbar-line: #d9dee3;
+  --color-close-border: #3c6478;
+
+  /* States */
+  --color-warning-text: #8a5a16;
+  --color-success-text: #3e7a15;
+  --color-disabled-text: #8a97a0;
+  --color-disabled-button: #9aa7af;
+
+  /* Map markers */
+  --color-marker-orange: #e8833a;
+  --color-marker-green: #7ac143;
+  --color-marker-blue: #3b82f6;
+  --color-marker-grey: #94a3b8;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    /* 12px base with the handoff's stack; every size below is relative to it. */
+    font-family: var(--font-sans);
+    font-size: 12px;
+    color: var(--color-body);
+    background: var(--color-surface);
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--color-body);
+  }
+
+  ::placeholder {
+    color: #94a3b8;
+  }
+}
+
+/*
+ * AG Grid overrides that its theming parameters do not cover.
+ *
+ * The grid ships rounded corners on menus and reveals the column filter
+ * button only on hover; the handoff wants square corners everywhere and a
+ * funnel visible on every header.
+ */
+.ag-root-wrapper,
+.ag-menu,
+.ag-popup-child,
+.ag-picker-field-wrapper,
+.maplibregl-ctrl-group,
+.maplibregl-ctrl-group button {
+  border-radius: 0 !important;
+}
+
+.ag-header-cell .ag-header-cell-menu-button,
+.ag-header-cell .ag-header-icon {
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+.ag-header-cell-menu-button .ag-icon {
+  color: #9fb4bf;
+}
+
+/* The pinned/scrolling seam: green under the dark header, grey down the body. */
+.ag-pinned-left-header {
+  border-right: 2px solid var(--color-accent) !important;
+}
+
+.ag-pinned-left-cols-container {
+  border-right: 2px solid var(--color-toolbar-line) !important;
+}
+
+/*
+ * Editable cells carry no chrome at rest; hover reveals a green outline so a
+ * rep can tell which columns accept an edit before clicking.
+ */
+.ag-cell.cell-editable:hover {
+  background: #ffffff;
+  outline: 1px solid var(--color-accent);
+  outline-offset: -1px;
+  cursor: text;
+}

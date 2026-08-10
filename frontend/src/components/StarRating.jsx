@@ -32,21 +32,24 @@ export function Star({ filled, className = 'h-4 w-4' }) {
 
 const MAX_RATING = 5
 
-/** AG Grid React cell renderer: the rating as stars, or an empty cell. */
+/**
+ * AG Grid React cell renderer: the rating as stars, or an empty cell.
+ * Sized to fit the handoff's 62px Rating column.
+ */
 export function RatingCell(params) {
   if (isBlank(params.value)) return null
-  return <StarRating value={params.value} />
+  return <StarRating value={params.value} starClassName="h-2.5 w-2.5" tight />
 }
 
 /** A row of five stars, the first `value` of them filled. */
-export default function StarRating({ value, starClassName = 'h-4 w-4' }) {
+export default function StarRating({ value, starClassName = 'h-4 w-4', tight }) {
   const rating = Number(value)
 
   return (
     <span
       role="img"
       aria-label={`Rated ${rating} out of ${MAX_RATING}`}
-      className="inline-flex items-center gap-0.5 align-middle"
+      className={`inline-flex items-center align-middle ${tight ? '' : 'gap-0.5'}`}
     >
       {Array.from({ length: MAX_RATING }, (_, index) => (
         <Star key={index} filled={index < rating} className={starClassName} />

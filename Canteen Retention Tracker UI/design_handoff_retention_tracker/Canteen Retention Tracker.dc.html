@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" />
+<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: #F8F9FA; }
+  * { box-sizing: border-box; }
+  a { color: #1B3A4B; text-decoration: none; }
+  a:hover { color: #7AC143; }
+  input, select, textarea, button { font-family: inherit; font-size: inherit; color: #1E293B; }
+  ::placeholder { color: #94A3B8; }
+  .maplibregl-ctrl-group { border-radius: 0 !important; }
+</style>
+</helmet>
+
+<div style="height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #1E293B; background: #F8F9FA;">
+
+  <header style="flex: 0 0 auto; background: #1B3A4B; color: #FFFFFF; display: flex; align-items: stretch; height: 48px; padding-left: 16px;">
+    <div style="display: flex; align-items: center; gap: 10px; padding-right: 28px;">
+      <div style="width: 18px; height: 18px; background: #7AC143;"></div>
+      <div style="font-size: 14px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;">Canteen Retention Tracker</div>
+    </div>
+    <nav style="display: flex; align-items: stretch; gap: 0;">
+      <button onClick="{{ goMap }}" style="{{ tabMapStyle }}">Map</button>
+      <button onClick="{{ goGrid }}" style="{{ tabGridStyle }}">Grid</button>
+      <button onClick="{{ goCalls }}" style="{{ tabCallsStyle }}">My Calls</button>
+    </nav>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 16px; padding: 0 16px; font-size: 11px; color: #C6D3DA;">
+      <span>FY26 Retention Cycle</span>
+      <span style="width: 1px; height: 18px; background: #2F5568;"></span>
+      <span style="display: flex; align-items: center; gap: 7px;"><span style="width: 22px; height: 22px; background: #7AC143; color: #12303E; font-weight: 700; font-size: 10px; display: flex; align-items: center; justify-content: center;">SB</span><span style="color: #FFFFFF;">S. Brooks</span></span>
+    </div>
+  </header>
+
+  <sc-if value="{{ isGrid }}" hint-placeholder-val="{{ true }}">
+  <div style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: #FFFFFF; border-top: 1px solid #12303E;">
+    <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; background: #F8F9FA; border-bottom: 1px solid #D9DEE3;">
+      <span style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #5A6B76;">All Sites</span>
+      <span style="color: #D9DEE3;">|</span>
+      <span style="font-size: 11px; color: #5A6B76;">{{ totalSites }} rows · 20 columns · 3 pinned</span>
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+        <input type="text" placeholder="Search sites" style="height: 22px; width: 180px; border: 1px solid #C9D1D7; background: #FFFFFF; padding: 0 7px; font-size: 11px;" />
+        <button style="height: 22px; border: 1px solid #C9D1D7; background: #FFFFFF; padding: 0 9px; font-size: 11px; cursor: pointer;">Filters</button>
+        <button style="height: 22px; border: 1px solid #1B3A4B; background: #1B3A4B; color: #FFFFFF; padding: 0 9px; font-size: 11px; cursor: pointer;">Export</button>
+      </div>
+    </div>
+
+    <div style="flex: 1 1 auto; min-height: 0; overflow: auto; position: relative;">
+      <div style="min-width: max-content;">
+        <div style="display: flex; position: sticky; top: 0; z-index: 30; background: #1B3A4B;">
+          <div style="position: sticky; left: 0; z-index: 32; width: 44px; flex: 0 0 44px; height: 30px; background: #1B3A4B; color: #FFFFFF; border-right: 1px solid #2F5568; display: flex; align-items: center; padding: 0 6px; font-size: 11px; font-weight: 600;">RS</div>
+          <div style="position: sticky; left: 44px; z-index: 32; width: 60px; flex: 0 0 60px; height: 30px; background: #1B3A4B; color: #FFFFFF; border-right: 1px solid #2F5568; display: flex; align-items: center; padding: 0 6px; font-size: 11px; font-weight: 600;">#</div>
+          <div style="position: sticky; left: 104px; z-index: 32; width: 210px; flex: 0 0 210px; height: 30px; background: #1B3A4B; color: #FFFFFF; border-right: 2px solid #7AC143; display: flex; align-items: center; gap: 6px; padding: 0 6px; font-size: 11px; font-weight: 600;">
+            <span>Site Name</span>
+            <svg viewBox="0 0 10 10" style="width: 8px; height: 8px; margin-left: auto; fill: #9FB4BF;"><path d="M0 1h10L6 5.2V10L4 8.4V5.2z"></path></svg>
+          </div>
+          <sc-for list="{{ restCols }}" as="col" hint-placeholder-count="8">
+            <div style="width: {{ col.w }}px; flex: 0 0 {{ col.w }}px; height: 30px; background: #1B3A4B; color: #FFFFFF; border-right: 1px solid #2F5568; display: flex; align-items: center; gap: 6px; padding: 0 6px; font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden;">
+              <span style="overflow: hidden; text-overflow: ellipsis;">{{ col.label }}</span>
+              <svg viewBox="0 0 10 10" style="width: 8px; height: 8px; margin-left: auto; flex: 0 0 8px; fill: #9FB4BF;"><path d="M0 1h10L6 5.2V10L4 8.4V5.2z"></path></svg>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-for list="{{ gridRows }}" as="row" hint-placeholder-count="14">
+          <div onClick="{{ row.open }}" style="display: flex; background: {{ row.bg }}; border-bottom: 1px solid #EAEDEF; cursor: pointer;">
+            <div style="position: sticky; left: 0; z-index: 12; width: 44px; flex: 0 0 44px; height: {{ rowH }}px; background: {{ row.bg }}; border-right: 1px solid #E1E5E8; display: flex; align-items: center; padding: 0 6px; font-weight: 600; color: #1B3A4B;">{{ row.rs }}</div>
+            <div style="position: sticky; left: 44px; z-index: 12; width: 60px; flex: 0 0 60px; height: {{ rowH }}px; background: {{ row.bg }}; border-right: 1px solid #E1E5E8; display: flex; align-items: center; padding: 0 6px; font-variant-numeric: tabular-nums; color: #5A6B76;">{{ row.num }}</div>
+            <div style="position: sticky; left: 104px; z-index: 12; width: 210px; flex: 0 0 210px; height: {{ rowH }}px; background: {{ row.bg }}; border-right: 2px solid #D9DEE3; display: flex; align-items: center; padding: 0 6px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ row.name }}</div>
+            <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="8">
+              <div style="{{ c.style }}" style-hover="{{ c.hoverStyle }}">{{ c.v }}</div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="flex: 0 0 auto; height: 24px; display: flex; align-items: center; gap: 14px; padding: 0 10px; background: #F8F9FA; border-top: 1px solid #D9DEE3; font-size: 11px; color: #5A6B76;">
+      <span>{{ totalSites }} sites</span>
+      <span>101 assigned to SB</span>
+      <span style="margin-left: auto;">Last sync 08 Aug 2026, 06:12</span>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isCalls }}" hint-placeholder-val="{{ false }}">
+  <div style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: #FFFFFF; border-top: 1px solid #12303E;">
+    <div style="flex: 0 0 auto; padding: 12px 14px 10px; border-bottom: 1px solid #D9DEE3; background: #FFFFFF;">
+      <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 7px;">
+        <span style="font-size: 13px; font-weight: 600; color: #1B3A4B;">My Calls</span>
+        <span style="font-size: 11px; color: #5A6B76; font-variant-numeric: tabular-nums;">{{ doneLabel }}</span>
+      </div>
+      <div style="height: 10px; background: #F8F9FA; border: 1px solid #E1E5E8; max-width: 620px;">
+        <div style="height: 100%; width: {{ pct }}%; background: #7AC143;"></div>
+      </div>
+      <div style="margin-top: 7px; font-size: 11px; color: #5A6B76; line-height: 1.6;">
+        Branch: Vancouver 28 · Calgary 22 · Toronto 19 · Montreal 17 · Halifax 15 &nbsp;|&nbsp; Status: Active 74 · At Risk 18 · Dormant 9
+      </div>
+    </div>
+
+    <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 14px; height: 36px; padding: 0 14px; background: #F8F9FA; border-bottom: 1px solid #D9DEE3;">
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #5A6B76;">
+        <span style="text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Branch</span>
+        <select value="{{ branchFilter }}" onChange="{{ setBranch }}" style="height: 24px; border: 1px solid #C9D1D7; background: #FFFFFF; padding: 0 6px; font-size: 11px;">
+          <option>All branches</option>
+          <option>Vancouver</option>
+          <option>Calgary</option>
+          <option>Toronto</option>
+          <option>Montreal</option>
+          <option>Halifax</option>
+        </select>
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #5A6B76;">
+        <span style="text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">Account Status</span>
+        <select value="{{ statusFilter }}" onChange="{{ setStatus }}" style="height: 24px; border: 1px solid #C9D1D7; background: #FFFFFF; padding: 0 6px; font-size: 11px;">
+          <option>All statuses</option>
+          <option>Active</option>
+          <option>At Risk</option>
+          <option>Dormant</option>
+        </select>
+      </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #1E293B; cursor: pointer;">
+        <input type="checkbox" checked="{{ showCalled }}" onChange="{{ toggleCalled }}" style="width: 13px; height: 13px; accent-color: #7AC143; margin: 0;" />
+        <span>Show already called</span>
+      </label>
+      <span style="margin-left: auto; font-size: 11px; color: #5A6B76;">{{ visibleLabel }}</span>
+    </div>
+
+    <div style="flex: 1 1 auto; min-height: 0; overflow: auto;">
+      <div style="min-width: 980px;">
+        <div style="display: flex; position: sticky; top: 0; z-index: 20; background: #1B3A4B; color: #FFFFFF; font-size: 11px; font-weight: 600;">
+          <div style="flex: 0 0 60px; height: 30px; display: flex; align-items: center; padding: 0 8px; border-right: 1px solid #2F5568;">#</div>
+          <div style="flex: 1 1 240px; height: 30px; display: flex; align-items: center; padding: 0 8px; border-right: 1px solid #2F5568;">Site Name</div>
+          <div style="flex: 0 0 130px; height: 30px; display: flex; align-items: center; padding: 0 8px; border-right: 1px solid #2F5568;">Branch</div>
+          <div style="flex: 0 0 110px; height: 30px; display: flex; align-items: center; padding: 0 8px; border-right: 1px solid #2F5568;">Account Status</div>
+          <div style="flex: 0 0 150px; height: 30px; display: flex; align-items: center; padding: 0 8px; border-right: 1px solid #2F5568;">Contact</div>
+          <div style="flex: 0 0 120px; height: 30px; display: flex; align-items: center; padding: 0 8px; border-right: 1px solid #2F5568;">Phone</div>
+          <div style="flex: 0 0 110px; height: 30px; display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; border-right: 1px solid #2F5568;">Annual Rev.</div>
+          <div style="flex: 0 0 90px; height: 30px; display: flex; align-items: center; padding: 0 8px; border-right: 1px solid #2F5568;">Status</div>
+          <div style="flex: 0 0 100px; height: 30px; display: flex; align-items: center; padding: 0 8px;">Last Call</div>
+        </div>
+        <sc-for list="{{ callRows }}" as="row" hint-placeholder-count="12">
+          <div onClick="{{ row.open }}" style="display: flex; background: {{ row.bg }}; border-bottom: 1px solid #EAEDEF; cursor: pointer;">
+            <div style="flex: 0 0 60px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px; color: #5A6B76; font-variant-numeric: tabular-nums;">{{ row.num }}</div>
+            <div style="flex: 1 1 240px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px; font-weight: 500; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{{ row.name }}</div>
+            <div style="flex: 0 0 130px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px;">{{ row.branch }}</div>
+            <div style="flex: 0 0 110px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px;">{{ row.status }}</div>
+            <div style="flex: 0 0 150px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{{ row.contact }}</div>
+            <div style="flex: 0 0 120px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px; font-variant-numeric: tabular-nums;">{{ row.phone }}</div>
+            <div style="flex: 0 0 110px; height: {{ rowH }}px; display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; font-variant-numeric: tabular-nums;">{{ row.revenue }}</div>
+            <div style="flex: 0 0 90px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px; color: {{ row.callColor }};">{{ row.callState }}</div>
+            <div style="flex: 0 0 100px; height: {{ rowH }}px; display: flex; align-items: center; padding: 0 8px; color: #5A6B76; font-variant-numeric: tabular-nums;">{{ row.lastCall }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+  <div style="flex: 1 1 auto; min-height: 0; position: relative; border-top: 1px solid #12303E; background: #E8EBED;">
+    <div ref="{{ mapRef }}" style="position: absolute; inset: 0;"></div>
+
+    <div style="position: absolute; top: 10px; left: 10px; z-index: 5; background: #FFFFFF; border: 1px solid #C9D1D7; box-shadow: 0 1px 2px rgba(16,36,48,0.14);">
+      <div style="background: #1B3A4B; color: #FFFFFF; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 5px 8px;">Rep</div>
+      <div style="padding: 7px 8px;">
+        <select value="{{ repFilter }}" onChange="{{ setRep }}" style="height: 24px; width: 176px; border: 1px solid #C9D1D7; background: #FFFFFF; padding: 0 6px; font-size: 11px;">
+          <option>All reps</option>
+          <option>SB — S. Brooks (me)</option>
+          <option>JD — J. Dufresne</option>
+          <option>MK — M. Kaur</option>
+          <option>RT — R. Tremblay</option>
+          <option>Unassigned</option>
+        </select>
+        <div style="margin-top: 6px; font-size: 11px; color: #5A6B76;">{{ mapCountLabel }}</div>
+      </div>
+    </div>
+
+    <div style="position: absolute; bottom: 14px; left: 10px; z-index: 5; background: #FFFFFF; border: 1px solid #C9D1D7; box-shadow: 0 1px 2px rgba(16,36,48,0.14); width: 210px;">
+      <div style="background: #1B3A4B; color: #FFFFFF; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; padding: 5px 8px;">Legend</div>
+      <sc-for list="{{ legendRows }}" as="lg" hint-placeholder-count="4">
+        <div onClick="{{ lg.toggle }}" style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid #EAEDEF; cursor: pointer; opacity: {{ lg.opacity }};" style-hover="background: #F8F9FA;">
+          <span style="width: 10px; height: 10px; border-radius: 50%; background: {{ lg.color }}; border: 1px solid #FFFFFF; outline: 1px solid rgba(27,58,75,0.35); flex: 0 0 10px;"></span>
+          <span style="font-size: 11px;">{{ lg.label }}</span>
+          <span style="margin-left: auto; font-size: 11px; color: #5A6B76; font-variant-numeric: tabular-nums;">{{ lg.count }}</span>
+          <input type="checkbox" checked="{{ lg.on }}" onChange="{{ lg.toggle }}" style="width: 12px; height: 12px; accent-color: #7AC143; margin: 0;" />
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="position: absolute; bottom: 14px; right: 10px; z-index: 5; background: rgba(255,255,255,0.94); border: 1px solid #C9D1D7; padding: 5px 8px; font-size: 10px; color: #5A6B76;">Click a marker to open the site detail panel</div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: rgba(16,36,48,0.18);" onClick="{{ closePanel }}">
+    <aside onClick="{{ stop }}" style="width: 460px; max-width: 92vw; height: 100%; background: #FFFFFF; border-left: 1px solid #C9D1D7; box-shadow: -2px 0 6px rgba(16,36,48,0.16); display: flex; flex-direction: column;">
+      <div style="flex: 0 0 auto; background: #1B3A4B; color: #FFFFFF; padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px;">
+        <div style="min-width: 0;">
+          <div style="font-size: 14px; font-weight: 600; line-height: 1.3;">{{ selName }}</div>
+          <div style="font-size: 11px; color: #A9BEC9; margin-top: 3px;">{{ selMeta }}</div>
+        </div>
+        <button onClick="{{ closePanel }}" style="margin-left: auto; background: transparent; border: 1px solid #3C6478; color: #FFFFFF; width: 22px; height: 22px; line-height: 1; cursor: pointer; flex: 0 0 22px;">×</button>
+      </div>
+
+      <div style="flex: 1 1 auto; min-height: 0; overflow: auto;">
+        <div style="background: #F8F9FA; border-bottom: 1px solid #D9DEE3; padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px 14px;">
+          <div>
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A6B76;">Address</div>
+            <div style="font-size: 12px; margin-top: 2px;">{{ selAddress }}</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A6B76;">Branch</div>
+            <div style="font-size: 12px; margin-top: 2px;">{{ selBranch }}</div>
+          </div>
+          <div>
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A6B76;">Account Status</div>
+            <div style="font-size: 12px; margin-top: 3px; display: flex; align-items: center; gap: 6px;">
+              <span style="background: #7AC143; color: #12303E; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px;">{{ selStatus }}</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: #5A6B76;">Annual Revenue</div>
+            <div style="font-size: 12px; margin-top: 2px; font-variant-numeric: tabular-nums;">{{ selRevenue }}</div>
+          </div>
+        </div>
+
+        <div style="padding: 11px 12px; border-bottom: 1px solid #D9DEE3;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1B3A4B;">Site Details</span>
+            <span style="flex: 1 1 auto; height: 1px; background: #E1E5E8;"></span>
+            <span style="font-size: 10px; color: {{ dirtyColor }};">{{ dirtyLabel }}</span>
+          </div>
+          <sc-for list="{{ editFields }}" as="f" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <label style="flex: 0 0 132px; font-size: 11px; color: #5A6B76;">{{ f.label }}</label>
+              <input type="text" value="{{ f.value }}" onChange="{{ f.onChange }}" style="flex: 1 1 auto; height: 26px; border: 1px solid #C9D1D7; background: #FFFFFF; padding: 0 7px; font-size: 12px;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;" />
+              <button onClick="{{ f.save }}" style="{{ f.saveStyle }}">Save</button>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="padding: 11px 12px; border-bottom: 1px solid #D9DEE3;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 9px;">
+            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1B3A4B;">Log a Call</span>
+            <span style="flex: 1 1 auto; height: 1px; background: #E1E5E8;"></span>
+            <span style="font-size: 10px; color: #5A6B76;">{{ today }}</span>
+          </div>
+
+          <div style="margin-bottom: 9px;">
+            <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Q1 · How was the last order handled?</div>
+            <textarea rows="2" style="width: 100%; border: 1px solid #C9D1D7; padding: 6px 7px; font-size: 12px; resize: vertical;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;"></textarea>
+          </div>
+          <div style="margin-bottom: 9px;">
+            <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Q2 · What is working well?</div>
+            <textarea rows="2" style="width: 100%; border: 1px solid #C9D1D7; padding: 6px 7px; font-size: 12px; resize: vertical;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;"></textarea>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 9px;">
+            <div>
+              <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Rating</div>
+              <div style="display: flex; gap: 3px;">
+                <sc-for list="{{ ratings }}" as="r" hint-placeholder-count="5">
+                  <button onClick="{{ r.pick }}" style="{{ r.style }}">{{ r.n }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <div>
+              <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Duration (min)</div>
+              <input type="number" placeholder="0" style="width: 88px; height: 26px; border: 1px solid #C9D1D7; padding: 0 7px; font-size: 12px;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;" />
+            </div>
+          </div>
+
+          <div style="margin-bottom: 9px;">
+            <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Q4 · What could be improved?</div>
+            <textarea rows="2" style="width: 100%; border: 1px solid #C9D1D7; padding: 6px 7px; font-size: 12px; resize: vertical;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;"></textarea>
+          </div>
+          <div style="margin-bottom: 9px;">
+            <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Notes</div>
+            <textarea rows="3" style="width: 100%; border: 1px solid #C9D1D7; padding: 6px 7px; font-size: 12px; resize: vertical;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;"></textarea>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+              <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Actions Required</div>
+              <textarea rows="2" style="width: 100%; border: 1px solid #C9D1D7; padding: 6px 7px; font-size: 12px; resize: vertical;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;"></textarea>
+            </div>
+            <div>
+              <div style="font-size: 11px; color: #1E293B; margin-bottom: 4px;">Data Corrections</div>
+              <textarea rows="2" style="width: 100%; border: 1px solid #C9D1D7; padding: 6px 7px; font-size: 12px; resize: vertical;" style-focus="border-color: #7AC143; outline: 1px solid #7AC143;"></textarea>
+            </div>
+          </div>
+
+          <div style="background: #F8F9FA; border: 1px solid #E1E5E8; border-left: 3px solid #7AC143; padding: 7px 9px; font-size: 11px; color: #1E293B; margin-bottom: 10px;">Is there anything else you'd like to mention?</div>
+
+          <div style="display: flex; align-items: center; gap: 9px;">
+            <button style="height: 30px; background: #7AC143; border: 1px solid #6BB033; color: #12303E; font-size: 12px; font-weight: 700; padding: 0 16px; cursor: pointer;" style-hover="background: #6BB033;">Submit Call</button>
+            <button style="height: 30px; background: #FFFFFF; border: 1px solid #C9D1D7; font-size: 12px; padding: 0 12px; cursor: pointer;" style-hover="background: #F8F9FA;">Save Draft</button>
+            <span style="margin-left: auto; font-size: 10px; color: #5A6B76;">Logged as SB</span>
+          </div>
+        </div>
+
+        <div style="padding: 11px 12px 22px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #1B3A4B;">Call History</span>
+            <span style="flex: 1 1 auto; height: 1px; background: #E1E5E8;"></span>
+            <span style="font-size: 10px; color: #5A6B76;">{{ historyLabel }}</span>
+          </div>
+          <sc-for list="{{ history }}" as="h" hint-placeholder-count="3">
+            <div style="{{ h.wrapStyle }}">
+              <div style="display: flex; align-items: baseline; gap: 8px;">
+                <span style="font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;">{{ h.date }}</span>
+                <span style="font-size: 11px; color: #5A6B76;">{{ h.rep }}</span>
+                <span style="font-size: 11px; color: #5A6B76;">{{ h.duration }}</span>
+                <span style="font-size: 11px; color: #5A6B76;">Rating {{ h.rating }}/5</span>
+                <span style="margin-left: auto; font-size: 10px; color: #5A6B76;">{{ h.source }}</span>
+              </div>
+              <div style="font-size: 11px; margin-top: 4px; line-height: 1.5;">{{ h.notes }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </aside>
+  </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;density&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;compact&quot;,&quot;comfortable&quot;],&quot;default&quot;:&quot;compact&quot;,&quot;tsType&quot;:&quot;'compact' | 'comfortable'&quot;,&quot;section&quot;:&quot;Grid&quot;}}">
+class Component extends DCLogic {
+  static D = (() => {
+const TEAL = '#1B3A4B';
+const GREEN = '#7AC143';
+const GREY = '#F8F9FA';
+
+const BRANCHES = ['Vancouver', 'Calgary', 'Toronto', 'Montreal', 'Halifax', 'Edmonton', 'Ottawa', 'Winnipeg'];
+const CITY = {
+  Vancouver: ['Vancouver', 'BC', 49.26, -123.11],
+  Calgary: ['Calgary', 'AB', 51.05, -114.07],
+  Toronto: ['Toronto', 'ON', 43.65, -79.38],
+  Montreal: ['Montréal', 'QC', 45.5, -73.57],
+  Halifax: ['Halifax', 'NS', 44.65, -63.58],
+  Edmonton: ['Edmonton', 'AB', 53.55, -113.49],
+  Ottawa: ['Ottawa', 'ON', 45.42, -75.7],
+  Winnipeg: ['Winnipeg', 'MB', 49.9, -97.14],
+};
+const REPS = ['SB', 'JD', 'MK', 'RT', ''];
+const STATUSES = ['Active', 'Active', 'Active', 'At Risk', 'Dormant'];
+const LOBS = ['Vending', 'Office Coffee', 'Micro Market', 'Dining Services', 'Pantry'];
+const ORDERING = ['Portal', 'Phone', 'Email', 'Rep Visit', 'EDI'];
+const NAME_A = ['Northgate', 'Riverbend', 'Lakeshore', 'Maple Ridge', 'Harbour', 'Summit', 'Cedar Park', 'Kingsway', 'Beacon', 'Trillium', 'Granville', 'Fraser', 'Bayview', 'Highfield', 'Clearwater'];
+const NAME_B = ['Distribution Centre', 'Manufacturing', 'Regional Hospital', 'Business Park', 'Logistics Hub', 'Campus', 'Assembly Plant', 'Data Centre', 'Head Office', 'Processing Facility'];
+const CONTACT_A = ['Dana', 'Marcus', 'Priya', 'Colin', 'Amara', 'Luc', 'Renee', 'Tomas', 'Wendy', 'Owen', 'Sofia', 'Grant'];
+const CONTACT_B = ['Whitfield', 'Okafor', 'Sandhu', 'Beaulieu', 'Halvorsen', 'Ng', 'Castellano', 'Prentice', 'Doyle', 'Moreau'];
+
+const COLS = [
+  { key: 'address', label: 'Address', w: 200 },
+  { key: 'city', label: 'City', w: 110 },
+  { key: 'province', label: 'Prov.', w: 62 },
+  { key: 'branch', label: 'Branch', w: 118 },
+  { key: 'lob', label: 'LOB', w: 118, edit: true },
+  { key: 'status', label: 'Account Status', w: 118 },
+  { key: 'contact', label: 'Contact Name', w: 140, edit: true },
+  { key: 'phone', label: 'Phone', w: 122, edit: true, num: true },
+  { key: 'ordering', label: 'Method of Ordering', w: 146, edit: true },
+  { key: 'lastOrder', label: 'Last Order', w: 100, num: true },
+  { key: 'f25', label: 'F25 Revenue', w: 112, num: true, right: true },
+  { key: 'annual', label: 'Annual Revenue', w: 122, num: true, right: true },
+  { key: 'risk', label: 'Rev. Risk', w: 80, num: true, right: true },
+  { key: 'calls', label: 'Calls', w: 58, num: true, right: true },
+  { key: 'lastCall', label: 'Last Call', w: 100, num: true },
+  { key: 'rating', label: 'Rating', w: 62, num: true, right: true },
+  { key: 'actions', label: 'Actions Required', w: 170 },
+];
+
+function rng(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) % 2147483648;
+    return s / 2147483648;
+  };
+}
+
+function money(n) {
+  return '$' + n.toLocaleString('en-CA');
+}
+
+function buildSites() {
+  const r = rng(97);
+  const sites = [];
+  let mine = 0;
+  for (let i = 0; i < 220; i++) {
+    const branch = BRANCHES[Math.floor(r() * BRANCHES.length)];
+    const [city, prov, lat, lng] = CITY[branch];
+    let rs = REPS[Math.floor(r() * REPS.length)];
+    if (mine < 101 && (i % 2 === 0 || 220 - i <= 101 - mine)) rs = 'SB';
+    if (rs === 'SB') mine++;
+    const annual = Math.round((12 + r() * 340)) * 1000;
+    const called = rs === 'SB' ? r() < 0.42 : r() < 0.3;
+    const day = 1 + Math.floor(r() * 28);
+    sites.push({
+      id: i,
+      num: String(10400 + i * 7),
+      rs,
+      name: NAME_A[Math.floor(r() * NAME_A.length)] + ' ' + NAME_B[Math.floor(r() * NAME_B.length)],
+      address: (100 + Math.floor(r() * 8800)) + ' ' + ['Industrial Ave', 'Commerce Way', 'Dundas St W', 'Rue Sherbrooke', 'Barrington St', 'Kingsway', 'Airport Rd'][Math.floor(r() * 7)],
+      city, province: prov,
+      lat: lat + (r() - 0.5) * 1.4,
+      lng: lng + (r() - 0.5) * 1.8,
+      branch,
+      lob: LOBS[Math.floor(r() * LOBS.length)],
+      status: STATUSES[Math.floor(r() * STATUSES.length)],
+      contact: CONTACT_A[Math.floor(r() * CONTACT_A.length)] + ' ' + CONTACT_B[Math.floor(r() * CONTACT_B.length)],
+      phone: '(' + [604, 403, 416, 514, 902][Math.floor(r() * 5)] + ') ' + (200 + Math.floor(r() * 799)) + '-' + (1000 + Math.floor(r() * 8999)),
+      ordering: ORDERING[Math.floor(r() * ORDERING.length)],
+      lastOrder: String(day).padStart(2, '0') + ' Jul 26',
+      f25: Math.round(annual * (0.7 + r() * 0.5)),
+      annual,
+      risk: (r() * 0.9).toFixed(2),
+      calls: called ? 1 + Math.floor(r() * 3) : 0,
+      lastCall: called ? String(1 + Math.floor(r() * 28)).padStart(2, '0') + ' Jul 26' : '—',
+      rating: called ? 2 + Math.floor(r() * 4) : '—',
+      actions: called ? ['Send updated price list', 'Escalate delivery window', 'Schedule equipment audit', 'Confirm PO contact', ''][Math.floor(r() * 5)] : '',
+      called,
+    });
+  }
+  return sites;
+}
+
+const SITES = buildSites();
+let sbSeen = 0;
+SITES.forEach((s) => {
+  if (s.rs !== 'SB') return;
+  sbSeen++;
+  if (sbSeen > 101) s.rs = 'MK';
+});
+const MINE = SITES.filter((s) => s.rs === 'SB');
+const DONE = MINE.filter((s) => s.called).length;
+
+const CAT = {
+  mineUncalled: { label: 'My sites — to call', color: '#E8833A' },
+  mineCalled: { label: 'My sites — called', color: GREEN },
+  other: { label: 'Other reps', color: '#3B82F6' },
+  unassigned: { label: 'Unassigned', color: '#94A3B8' },
+};
+
+function catOf(s) {
+  if (s.rs === 'SB') return s.called ? 'mineCalled' : 'mineUncalled';
+  if (!s.rs) return 'unassigned';
+  return 'other';
+}
+
+return { TEAL, GREEN, GREY, COLS, SITES, MINE, DONE, CAT, catOf, money };
+  })();
+
+  state = {
+    view: 'grid',
+    selectedId: null,
+    branchFilter: 'All branches',
+    statusFilter: 'All statuses',
+    showCalled: false,
+    repFilter: 'All reps',
+    legend: { mineUncalled: true, mineCalled: true, other: true, unassigned: true },
+    rating: 0,
+    edits: {},
+    saved: {},
+  };
+
+  mapRef = React.createRef();
+
+  componentDidMount() { this.syncMap(); }
+  componentDidUpdate() { this.syncMap(); }
+
+  mapSites() {
+    const { SITES, catOf } = Component.D;
+    const rf = this.state.repFilter;
+    return SITES.filter((s) => {
+      if (!this.state.legend[catOf(s)]) return false;
+      if (rf === 'All reps') return true;
+      if (rf === 'Unassigned') return !s.rs;
+      return s.rs === rf.slice(0, 2);
+    });
+  }
+
+  syncMap() {
+    if (this.state.view !== 'map') { return; }
+    const el = this.mapRef.current;
+    if (!el || !window.maplibregl) return;
+    if (!this.map) {
+      this.map = new window.maplibregl.Map({
+        container: el,
+        style: 'https://tiles.openfreemap.org/styles/liberty',
+        center: [-96, 52],
+        zoom: 3,
+        maxPitch: 80,
+        attributionControl: false,
+      });
+      this.map.addControl(new window.maplibregl.NavigationControl(), 'top-right');
+      this.mapReady = false;
+      const ready = () => {
+        this.mapReady = true;
+        this.drawMarkers();
+      };
+      this.map.on('style.load', () => {
+        try { this.map.setProjection({ type: 'globe' }); } catch (e) {}
+        ready();
+      });
+      this.map.once('idle', ready);
+      this.map.on('load', ready);
+    } else {
+      this.map.resize();
+      if (this.mapReady || this.map.isStyleLoaded()) this.drawMarkers();
+    }
+  }
+
+  drawMarkers() {
+    if (!this.map) return;
+    const { CAT, catOf } = Component.D;
+    (this.markers || []).forEach((m) => m.remove());
+    this.markers = this.mapSites().map((s) => {
+      const el = document.createElement('div');
+      el.style.cssText = 'width:11px;height:11px;border-radius:50%;border:1.5px solid #fff;cursor:pointer;box-shadow:0 0 0 1px rgba(16,36,48,.35);background:' + CAT[catOf(s)].color;
+      el.addEventListener('click', (ev) => { ev.stopPropagation(); this.setState({ selectedId: s.id }); });
+      return new window.maplibregl.Marker({ element: el }).setLngLat([s.lng, s.lat]).addTo(this.map);
+    });
+  }
+
+  tab(name, label) {
+    const { GREEN } = Component.D;
+    const active = this.state.view === name;
+    return 'height:100%;padding:0 18px;background:transparent;border:none;border-bottom:3px solid ' + (active ? GREEN : 'transparent') +
+      ';color:' + (active ? '#FFFFFF' : '#B7C8D1') + ';font-size:12px;font-weight:' + (active ? 700 : 500) +
+      ';letter-spacing:0.03em;cursor:pointer;';
+  }
+
+  field(site, key) {
+    const e = this.state.edits[site.id] || {};
+    return key in e ? e[key] : site[key];
+  }
+
+  renderVals() {
+    const { GREEN, GREY, COLS, SITES, MINE, DONE, CAT, catOf, money } = Component.D;
+    const st = this.state;
+    const rowH = (this.props.density === 'comfortable') ? 32 : 26;
+    const sel = st.selectedId === null ? null : SITES[st.selectedId];
+
+    const gridRows = SITES.map((s, i) => ({
+      rs: s.rs || '—',
+      num: s.num,
+      name: s.name,
+      bg: i % 2 ? GREY : '#FFFFFF',
+      open: () => this.setState({ selectedId: s.id }),
+      cells: COLS.map((c) => {
+        let v = c.key === 'f25' || c.key === 'annual' ? money(s[c.key]) : String(this.field(s, c.key));
+        return {
+          v,
+          style: 'width:' + c.w + 'px;flex:0 0 ' + c.w + 'px;height:' + rowH + 'px;display:flex;align-items:center;justify-content:' +
+            (c.right ? 'flex-end' : 'flex-start') + ';padding:0 6px;border-right:1px solid #E1E5E8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' +
+            (c.num ? 'font-variant-numeric:tabular-nums;' : '') + (c.edit ? 'outline:1px solid transparent;' : ''),
+          hoverStyle: c.edit ? 'background:#FFFFFF;outline:1px solid ' + GREEN + ';outline-offset:-1px;' : '',
+        };
+      }),
+    }));
+
+    let calls = MINE;
+    if (st.branchFilter !== 'All branches') calls = calls.filter((s) => s.branch === st.branchFilter);
+    if (st.statusFilter !== 'All statuses') calls = calls.filter((s) => s.status === st.statusFilter);
+    if (!st.showCalled) calls = calls.filter((s) => !s.called);
+
+    const callRows = calls.map((s, i) => ({
+      num: s.num, name: s.name, branch: s.branch, status: s.status,
+      contact: this.field(s, 'contact'), phone: this.field(s, 'phone'),
+      revenue: money(s.annual),
+      callState: s.called ? '[Called]' : '[Pending]',
+      callColor: s.called ? '#3E7A15' : '#8A5A16',
+      lastCall: s.lastCall,
+      bg: i % 2 ? GREY : '#FFFFFF',
+      open: () => this.setState({ selectedId: s.id }),
+    }));
+
+    const counts = { mineUncalled: 0, mineCalled: 0, other: 0, unassigned: 0 };
+    SITES.forEach((s) => { counts[catOf(s)]++; });
+
+    const legendRows = Object.keys(CAT).map((k) => ({
+      label: CAT[k].label, color: CAT[k].color, count: counts[k], on: st.legend[k],
+      opacity: st.legend[k] ? 1 : 0.45,
+      toggle: () => this.setState((p) => ({ legend: Object.assign({}, p.legend, { [k]: !p.legend[k] }) })),
+    }));
+
+    const editKeys = [
+      ['contact', 'Contact Name'], ['ordering', 'Method of Ordering'], ['lob', 'LOB'], ['phone', 'Phone'],
+    ];
+    const dirtyCount = sel ? Object.keys(st.edits[sel.id] || {}).length : 0;
+
+    return {
+      isGrid: st.view === 'grid', isCalls: st.view === 'calls', isMap: st.view === 'map',
+      goGrid: () => this.setState({ view: 'grid' }),
+      goCalls: () => this.setState({ view: 'calls' }),
+      goMap: () => this.setState({ view: 'map' }),
+      tabGridStyle: this.tab('grid'), tabCallsStyle: this.tab('calls'), tabMapStyle: this.tab('map'),
+      rowH, restCols: COLS, gridRows, totalSites: SITES.length,
+      callRows,
+      doneLabel: DONE + ' / 101 calls completed',
+      pct: Math.round((DONE / 101) * 100),
+      visibleLabel: callRows.length + ' of 101 shown',
+      branchFilter: st.branchFilter, statusFilter: st.statusFilter, showCalled: st.showCalled,
+      setBranch: (e) => this.setState({ branchFilter: e.target.value }),
+      setStatus: (e) => this.setState({ statusFilter: e.target.value }),
+      toggleCalled: () => this.setState((p) => ({ showCalled: !p.showCalled })),
+      mapRef: this.mapRef,
+      repFilter: st.repFilter,
+      setRep: (e) => this.setState({ repFilter: e.target.value }),
+      mapCountLabel: this.mapSites().length + ' of ' + SITES.length + ' sites plotted',
+      legendRows,
+      panelOpen: !!sel,
+      closePanel: () => this.setState({ selectedId: null }),
+      stop: (e) => e.stopPropagation(),
+      selName: sel ? sel.name : '',
+      selMeta: sel ? '#' + sel.num + ' · ' + (sel.rs || 'Unassigned') + ' · ' + sel.lob : '',
+      selAddress: sel ? sel.address + ', ' + sel.city + ', ' + sel.province : '',
+      selBranch: sel ? sel.branch : '',
+      selStatus: sel ? sel.status : '',
+      selRevenue: sel ? money(sel.annual) + ' / yr' : '',
+      dirtyLabel: dirtyCount ? dirtyCount + ' unsaved change' + (dirtyCount > 1 ? 's' : '') : 'All changes saved',
+      dirtyColor: dirtyCount ? '#8A5A16' : '#5A6B76',
+      editFields: sel ? editKeys.map(([k, label]) => {
+        const dirty = (st.edits[sel.id] || {})[k] !== undefined;
+        return {
+          label, value: this.field(sel, k),
+          onChange: (e) => this.setState((p) => ({ edits: Object.assign({}, p.edits, { [sel.id]: Object.assign({}, p.edits[sel.id], { [k]: e.target.value }) }) })),
+          save: () => this.setState((p) => {
+            const per = Object.assign({}, p.edits[sel.id]);
+            if (per[k] !== undefined) sel[k] = per[k];
+            delete per[k];
+            return { edits: Object.assign({}, p.edits, { [sel.id]: per }) };
+          }),
+          saveStyle: 'flex:0 0 auto;height:26px;padding:0 10px;font-size:11px;cursor:pointer;border:1px solid ' +
+            (dirty ? '#6BB033' : '#D9DEE3') + ';background:' + (dirty ? GREEN : '#F8F9FA') + ';color:' + (dirty ? '#12303E' : '#9AA7AF') + ';font-weight:' + (dirty ? 700 : 400) + ';',
+        };
+      }) : [],
+      ratings: [1, 2, 3, 4, 5].map((n) => ({
+        n,
+        pick: () => this.setState({ rating: n }),
+        style: 'width:28px;height:26px;font-size:12px;cursor:pointer;border:1px solid ' + (st.rating === n ? '#6BB033' : '#C9D1D7') +
+          ';background:' + (st.rating === n ? GREEN : '#FFFFFF') + ';color:' + (st.rating === n ? '#12303E' : '#1E293B') + ';font-weight:' + (st.rating === n ? 700 : 400) + ';',
+      })),
+      today: '10 Aug 2026',
+      historyLabel: sel ? (sel.calls || 0) + ' logged · 2 imported' : '',
+      history: sel ? [
+        { date: '14 Jul 2026', rep: 'SB', duration: '12 min', rating: 4, source: 'Logged in app', notes: 'Reviewed micro market planogram. Wants a second coffee brewer in the east wing before September.', imported: false },
+        { date: '03 Apr 2026', rep: 'JD', duration: '9 min', rating: 3, source: 'Imported record', notes: 'Delivery window complaint. Escalated to branch ops; no follow-up recorded.', imported: true },
+        { date: '19 Nov 2025', rep: 'JD', duration: '—', rating: 3, source: 'Imported record', notes: 'Annual check-in captured in the legacy tracker spreadsheet.', imported: true },
+      ].map((h) => Object.assign({}, h, {
+        wrapStyle: 'border:1px solid #E1E5E8;border-left:3px solid ' + (h.imported ? '#C9D1D7' : GREEN) + ';padding:7px 9px;margin-bottom:6px;background:' +
+          (h.imported ? GREY : '#FFFFFF') + ';color:' + (h.imported ? '#8A97A0' : '#1E293B') + ';',
+      })) : [],
+    };
+  }
+}
+</script>
+</body>
+</html>
