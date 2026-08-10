@@ -9,6 +9,22 @@
 /** Placeholder shown wherever a site has no value for a column. */
 export const EM_DASH = '—'
 
+/** Until auth lands, "my" sites and calls mean this rep's. */
+export const MY_REP_INITIALS = 'BC'
+
+/**
+ * True for calls logged through this tool, as opposed to rows carried over
+ * from the tracker import. Only app-sourced calls count as "called".
+ */
+export function isAppCall(call) {
+  return call.source === 'app'
+}
+
+/** IDs of sites with at least one call logged through this tool. */
+export function getAppCalledSiteIds(calls) {
+  return new Set(calls.filter(isAppCall).map((call) => call.site))
+}
+
 /** Broadcast a site selection so sibling panels can react without prop drilling. */
 export function dispatchAssetSelected(site) {
   window.dispatchEvent(new CustomEvent('assetSelected', { detail: site }))

@@ -74,12 +74,26 @@ class RepAssignment(models.Model):
 
 
 class CallRecord(models.Model):
-    """A record of a rep's call/visit to a site."""
+    """A record of a rep's call/visit to a site.
+
+    ``source`` separates calls actually made through this tool ("app") from
+    legacy rows carried over from the tracker spreadsheet ("import"). Only
+    app-sourced records count as a site having been called.
+    """
+
+    class Source(models.TextChoices):
+        IMPORT = "import", "Imported from tracker"
+        APP = "app", "Logged in app"
 
     site = models.ForeignKey(
         Site,
         on_delete=models.CASCADE,
         related_name="call_records",
+    )
+    # Defaults to IMPORT so the ingest path and the migration backfill both
+    # classify their rows as legacy; the API create path overrides with APP.
+    source = models.CharField(
+        max_length=16, choices=Source.choices, default=Source.IMPORT
     )
     rep_initials = models.CharField(max_length=16, blank=True)
     call_date = models.DateField(null=True, blank=True)

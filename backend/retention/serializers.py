@@ -92,6 +92,7 @@ class CallRecordSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "site",
+            "source",
             "rep_initials",
             "call_date",
             "duration_minutes",
@@ -103,9 +104,13 @@ class CallRecordSerializer(serializers.ModelSerializer):
             "actions_required",
             "data_corrections",
         ]
+        # The server decides provenance: anything POSTed here was logged in
+        # the app, regardless of what the client claims.
+        read_only_fields = ["source"]
 
     def create(self, validated_data):
-        """Default an omitted call date to today rather than storing null."""
+        """Stamp the record as app-logged and default an omitted call date."""
         if validated_data.get("call_date") is None:
             validated_data["call_date"] = timezone.localdate()
+        validated_data["source"] = CallRecord.Source.APP
         return super().create(validated_data)

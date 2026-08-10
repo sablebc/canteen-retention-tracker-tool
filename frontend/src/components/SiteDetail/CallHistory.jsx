@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import { EM_DASH, formatIsoDate, isBlank } from '../../lib/sites'
+import { EM_DASH, formatIsoDate, isAppCall, isBlank } from '../../lib/sites'
 
 const NOTES_PREVIEW_LENGTH = 90
 
@@ -44,6 +44,9 @@ function DetailRow({ label, value }) {
 function CallEntry({ call }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const canExpand = hasExpandableDetail(call)
+  // Legacy rows from the tracker import are shown for context but greyed
+  // out — they are not calls made through this tool.
+  const isImported = !isAppCall(call)
 
   const preview = isBlank(call.notes)
     ? EM_DASH
@@ -52,11 +55,20 @@ function CallEntry({ call }) {
       }`
 
   return (
-    <li className="border-b border-gray-100 px-3 py-2 last:border-b-0">
+    <li
+      className={`border-b border-gray-100 px-3 py-2 last:border-b-0 ${
+        isImported ? 'bg-gray-50 opacity-70' : ''
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <span className="font-medium text-gray-900 tabular-nums">
           {formatIsoDate(call.call_date)}
         </span>
+        {isImported && (
+          <span className="rounded bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-600">
+            Imported from tracker
+          </span>
+        )}
         <span className="text-gray-500">
           {isBlank(call.duration_minutes) ? EM_DASH : `${call.duration_minutes} min`}
         </span>

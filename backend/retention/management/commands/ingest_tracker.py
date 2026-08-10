@@ -442,6 +442,7 @@ def _upsert_call(site: Site, entry: TrackerRow, stats: IngestStats) -> None:
         return
 
     defaults = {
+        "source": CallRecord.Source.IMPORT,
         "rep_initials": truncate(entry.rep_initials, 16),
         "duration_minutes": entry.duration_minutes,
         "q1_last_order_feedback": entry.q1,

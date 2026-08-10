@@ -201,6 +201,48 @@ class CallRecordCreateTests(TestCase):
         self.assertIn("rating", response.json())
 
 
+class CallRecordSourceTests(TestCase):
+    """``source`` separates calls logged in this tool from tracker imports."""
+
+    def setUp(self):
+        self.site = Site.objects.create(site_id="1", name="Test Site")
+
+    def test_a_posted_call_is_marked_app_sourced(self):
+        response = self.client.post(
+            CALLS_URL,
+            data={"site": self.site.pk, "rep_initials": "BC"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["source"], "app")
+        self.assertEqual(CallRecord.objects.get().source, "app")
+
+    def test_a_client_supplied_source_is_ignored(self):
+        response = self.client.post(
+            CALLS_URL,
+            data={"site": self.site.pk, "rep_initials": "BC", "source": "import"},
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(CallRecord.objects.get().source, "app")
+
+    def test_source_defaults_to_import_for_directly_created_records(self):
+        # The ingest path relies on this default, so pre-existing rows from
+        # the migration backfill also count as imports.
+        call = CallRecord.objects.create(site=self.site, rep_initials="BC")
+        self.assertEqual(call.source, "import")
+
+    def test_the_list_endpoint_returns_each_calls_source(self):
+        CallRecord.objects.create(site=self.site, rep_initials="BC")
+
+        response = self.client.get(CALLS_URL, {"site": self.site.pk})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["source"], "import")
+
+
 class CallRecordListTests(TestCase):
     def setUp(self):
         self.site = Site.objects.create(site_id="1", name="Site One")
