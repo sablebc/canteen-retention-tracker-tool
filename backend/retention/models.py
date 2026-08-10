@@ -11,6 +11,9 @@ class Site(models.Model):
     """
 
     site_id = models.CharField(max_length=64, unique=True)
+    # False when ``site_id`` was synthesised from name+address because the
+    # tracker's '#' column was blank for that row.
+    has_native_id = models.BooleanField(default=True)
     name = models.CharField(max_length=255)
     address = models.TextField(blank=True)
     branch = models.CharField(max_length=255, blank=True)
@@ -19,6 +22,9 @@ class Site(models.Model):
     contact_name = models.CharField(max_length=255, blank=True)
     method_of_ordering = models.CharField(max_length=255, blank=True)
     account_status = models.CharField(max_length=128, blank=True)
+    # The unmodified tracker text behind ``account_status``, kept so a bad
+    # normalisation rule can be diagnosed and re-run without a fresh export.
+    raw_account_status = models.CharField(max_length=255, blank=True)
     last_order_date = models.DateField(null=True, blank=True)
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
