@@ -1,6 +1,6 @@
 /**
- * Marker categories for the site map: who owns the site crossed with whether
- * it has been called through this tool.
+ * Marker categories and rep filtering for the site map: who owns the site
+ * crossed with whether it has been called through this tool.
  */
 import { MY_REP_INITIALS, getRepInitials } from '../../lib/sites'
 
@@ -31,4 +31,27 @@ export function categorizeSite(site, appCalledSiteIds) {
     return appCalledSiteIds.has(site.id) ? 'mine-called' : 'mine-uncalled'
   }
   return rep ? 'other-rep' : 'unassigned'
+}
+
+/** Sentinel value for the rep dropdown's "Unassigned" choice. */
+export const REP_FILTER_UNASSIGNED = 'unassigned'
+
+/** Rep dropdown choices; '' means every site. Defaults to my own list. */
+export const REP_FILTER_OPTIONS = [
+  { value: '', label: 'All sites' },
+  { value: MY_REP_INITIALS, label: `My sites (${MY_REP_INITIALS})` },
+  { value: 'AJ', label: 'AJ' },
+  { value: 'CM', label: 'CM' },
+  { value: 'WH', label: 'WH' },
+  { value: REP_FILTER_UNASSIGNED, label: 'Unassigned' },
+]
+
+export const DEFAULT_REP_FILTER = MY_REP_INITIALS
+
+/** True when a site passes the rep dropdown's current selection. */
+export function matchesRepFilter(site, repFilter) {
+  if (repFilter === '') return true
+  const rep = getRepInitials(site)
+  if (repFilter === REP_FILTER_UNASSIGNED) return rep === null
+  return rep === repFilter
 }

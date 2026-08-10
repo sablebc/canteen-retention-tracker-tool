@@ -27,18 +27,18 @@ export default function App() {
   return (
     <div className="flex h-screen w-screen flex-col bg-gray-50">
       <header className="flex items-center justify-between border-b border-gray-200 bg-white px-4 py-2.5">
-        <h1 className="text-sm font-semibold text-gray-900">
+        <h1 className="truncate text-sm font-semibold text-gray-900">
           Canteen Retention Tracker
         </h1>
 
-        <nav className="inline-flex gap-0.5 rounded-md bg-gray-100 p-0.5">
+        <nav className="inline-flex shrink-0 gap-0.5 rounded-md bg-gray-100 p-0.5">
           {VIEWS.map(({ id, label }) => (
             <button
               key={id}
               type="button"
               onClick={() => setView(id)}
               aria-pressed={view === id}
-              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+              className={`whitespace-nowrap rounded px-3 py-1 text-sm font-medium transition-colors ${
                 view === id
                   ? 'bg-white text-gray-900 shadow-sm'
                   : 'text-gray-500 hover:text-gray-800'

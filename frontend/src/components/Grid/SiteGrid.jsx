@@ -45,6 +45,8 @@ export default function SiteGrid() {
   const { sites, isLoading: isLoadingSites, loadError } = useSites()
   const { calls, isLoading: isLoadingCalls, loadError: callsError } = useCalls()
   const [saveError, setSaveError] = useState(null)
+  // Row count after the grid's own column filters; null until first render.
+  const [displayedCount, setDisplayedCount] = useState(null)
 
   // Calls arrive newest first, so the first record seen per site is its
   // most recent call.
@@ -106,8 +108,18 @@ export default function SiteGrid() {
     )
   }
 
+  const shownCount = displayedCount ?? sites.length
+
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="flex items-center justify-end border-b border-gray-200 bg-white px-3 py-1.5">
+        <span className="text-sm text-gray-500 tabular-nums">
+          {shownCount === sites.length
+            ? `${sites.length} sites`
+            : `${shownCount} of ${sites.length} sites`}
+        </span>
+      </div>
+
       {callsError && (
         <p className="border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Call history unavailable, so the call columns are empty: {callsError}
@@ -131,6 +143,9 @@ export default function SiteGrid() {
           headerHeight={HEADER_HEIGHT}
           onCellValueChanged={handleCellValueChanged}
           onCellClicked={handleCellClicked}
+          onModelUpdated={(event) =>
+            setDisplayedCount(event.api.getDisplayedRowCount())
+          }
         />
       </div>
     </div>

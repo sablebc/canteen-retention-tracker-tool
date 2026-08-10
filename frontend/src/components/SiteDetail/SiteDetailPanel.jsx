@@ -15,10 +15,15 @@ import CallHistory from './CallHistory'
 import EditableField from './EditableField'
 import LogCallForm from './LogCallForm'
 
-/** Site fields the API accepts a PATCH for, in the order they are shown. */
+/** Site fields the API accepts a PATCH for, in the order they are shown.
+ *
+ * Contact Name gets the full panel width: the tracker mixes names, emails,
+ * and both in one cell (e.g. "Missing | invoices@gentek.ca"), so the raw
+ * value must stay fully visible while remaining editable for corrections.
+ */
 const EDITABLE_FIELDS = [
+  { key: 'contact_name', label: 'Contact Name', fullWidth: true },
   { key: 'method_of_ordering', label: 'Method of Ordering' },
-  { key: 'contact_name', label: 'Contact Name' },
   { key: 'lob', label: 'LOB' },
   { key: 'phone_number', label: 'Phone Number' },
 ]
@@ -48,13 +53,15 @@ export default function SiteDetailPanel({ site, onClose }) {
   const [calls, setCalls] = useState([])
   const [isLoadingCalls, setIsLoadingCalls] = useState(true)
   const [callsError, setCallsError] = useState(null)
-  const [isLoggingCall, setIsLoggingCall] = useState(false)
+  // Open with the form ready: the whole point of opening a site is to work
+  // on it, so logging a call must not cost an extra click.
+  const [isLoggingCall, setIsLoggingCall] = useState(true)
   const [confirmation, setConfirmation] = useState(null)
 
   // A different row was clicked while the panel was open.
   useEffect(() => {
     setCurrent(site)
-    setIsLoggingCall(false)
+    setIsLoggingCall(true)
     setConfirmation(null)
   }, [site])
 
@@ -115,9 +122,9 @@ export default function SiteDetailPanel({ site, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label={`Details for ${current.name}`}
-        className="relative flex h-full w-full max-w-xl flex-col overflow-hidden bg-white shadow-xl"
+        className="relative flex h-full w-full max-w-md flex-col overflow-hidden bg-white shadow-xl"
       >
-        <header className="flex items-start gap-3 border-b border-gray-200 px-4 py-3">
+        <header className="flex items-start gap-3 border-b border-gray-200 px-3.5 py-2.5">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-base font-semibold text-gray-900">
               {current.name}
@@ -152,8 +159,8 @@ export default function SiteDetailPanel({ site, onClose }) {
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          <dl className="grid grid-cols-2 gap-3">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-2.5">
+          <dl className="grid grid-cols-2 gap-2.5">
             <ReadOnlyField
               label="Address"
               value={formatText(current.address)}
@@ -174,21 +181,22 @@ export default function SiteDetailPanel({ site, onClose }) {
             />
           </dl>
 
-          <section className="mt-5">
+          <section className="mt-4">
             <h3 className="mb-2 text-sm font-semibold text-gray-900">Details</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {EDITABLE_FIELDS.map(({ key, label }) => (
-                <EditableField
-                  key={key}
-                  label={label}
-                  value={current[key]}
-                  onSave={(value) => saveField(key, value)}
-                />
+            <div className="grid grid-cols-2 gap-2.5">
+              {EDITABLE_FIELDS.map(({ key, label, fullWidth }) => (
+                <div key={key} className={fullWidth ? 'col-span-2' : ''}>
+                  <EditableField
+                    label={label}
+                    value={current[key]}
+                    onSave={(value) => saveField(key, value)}
+                  />
+                </div>
               ))}
             </div>
           </section>
 
-          <section className="mt-6">
+          <section className="mt-4">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-900">
                 Call history

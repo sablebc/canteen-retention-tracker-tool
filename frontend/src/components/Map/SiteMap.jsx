@@ -5,24 +5,24 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { useCalls } from '../../hooks/useCalls'
 import { useSites } from '../../hooks/useSites'
-import {
-  dispatchAssetSelected,
-  formatText,
-  getAppCalledSiteIds,
-  getRepInitials,
-} from '../../lib/sites'
+import { dispatchAssetSelected, getAppCalledSiteIds } from '../../lib/sites'
 import MapLegend from './MapLegend'
-import { CATEGORY_COLORS, MAP_CATEGORIES, categorizeSite } from './mapCategories'
+import {
+  CATEGORY_COLORS,
+  DEFAULT_REP_FILTER,
+  MAP_CATEGORIES,
+  categorizeSite,
+  matchesRepFilter,
+} from './mapCategories'
 
 const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 const INITIAL_CENTER = [-98.5, 39.8]
 const INITIAL_ZOOM = 2
 const MAX_PITCH = 80
-const POPUP_OFFSET_PX = 12
 
 // Color comes from the site's category, applied as an inline style.
 const MARKER_CLASSES =
-  'w-3 h-3 rounded-full border-2 border-white shadow-md ' +
+  'w-4 h-4 rounded-full border-2 border-white shadow-md ' +
   'cursor-pointer hover:scale-125 transition-transform'
 
 function hasCoordinates(site) {
@@ -30,50 +30,13 @@ function hasCoordinates(site) {
 }
 
 /**
- * Build a popup's DOM by hand — element by element, via textContent — so
- * tracker-sourced strings are never interpreted as HTML.
- */
-function buildPopupContent(site) {
-  const container = document.createElement('div')
-  container.className = 'space-y-1 pr-2 text-sm'
-
-  const name = document.createElement('p')
-  name.className = 'font-semibold text-gray-900'
-  name.textContent = site.name
-  container.appendChild(name)
-
-  const facts = [
-    ['Status', formatText(site.account_status)],
-    ['Rep', formatText(getRepInitials(site))],
-  ]
-  facts.forEach(([label, value]) => {
-    const row = document.createElement('p')
-    row.className = 'text-gray-600'
-
-    const term = document.createElement('span')
-    term.className = 'font-medium text-gray-500'
-    term.textContent = `${label}: `
-    row.append(term, value)
-    container.appendChild(row)
-  })
-
-  const detailsButton = document.createElement('button')
-  detailsButton.type = 'button'
-  detailsButton.className = 'mt-1 text-sm font-medium text-blue-700 hover:underline'
-  detailsButton.textContent = 'View Details'
-  detailsButton.addEventListener('click', () => dispatchAssetSelected(site))
-  container.appendChild(detailsButton)
-
-  return container
-}
-
-/**
  * Full-bleed MapLibre GL globe plotting every site that has coordinates.
  *
  * Markers are color-coded by assignment and call status (same "called" rule
- * as My Calls: at least one app-sourced call record), with a legend whose
- * rows toggle each category. Clicking a marker opens a popup; its
- * "View Details" button dispatches the shared `assetSelected` event.
+ * as My Calls: at least one app-sourced call record). The corner panel
+ * filters by rep — defaulting to my own sites — and its legend rows toggle
+ * each color category. Clicking a marker opens the site detail panel
+ * directly via the shared `assetSelected` event.
  */
 export default function SiteMap() {
   const containerRef = useRef(null)
@@ -82,6 +45,7 @@ export default function SiteMap() {
   // without rebuilding, and so unmount can tear them down before the map.
   const markersRef = useRef([])
   const [isMapReady, setIsMapReady] = useState(false)
+  const [repFilter, setRepFilter] = useState(DEFAULT_REP_FILTER)
   const [visibleCategories, setVisibleCategories] = useState(
     () => new Set(MAP_CATEGORIES.map(({ id }) => id)),
   )
@@ -129,19 +93,17 @@ export default function SiteMap() {
       const element = document.createElement('div')
       element.className = MARKER_CLASSES
       element.style.backgroundColor = CATEGORY_COLORS[categoryId]
+      // One click on a marker opens the detail panel — no popup in between.
+      element.addEventListener('click', (event) => {
+        event.stopPropagation()
+        dispatchAssetSelected(site)
+      })
 
-      const popup = new maplibregl.Popup({
-        offset: POPUP_OFFSET_PX,
-        closeButton: false,
-      }).setDOMContent(buildPopupContent(site))
-
-      // Marker click toggles the attached popup; maplibre wires that up.
       const marker = new maplibregl.Marker({ element })
         .setLngLat([site.longitude, site.latitude])
-        .setPopup(popup)
         .addTo(map)
 
-      return { marker, element, categoryId }
+      return { marker, element, site, categoryId }
     })
     markersRef.current = markers
 
@@ -152,12 +114,14 @@ export default function SiteMap() {
   }, [isMapReady, sites, appCalledSiteIds])
 
   // Runs after the marker effect above, so freshly built markers are
-  // immediately filtered to the checked categories.
+  // immediately filtered to the selected rep and checked categories.
   useEffect(() => {
-    markersRef.current.forEach(({ element, categoryId }) => {
-      element.style.display = visibleCategories.has(categoryId) ? '' : 'none'
+    markersRef.current.forEach(({ element, site, categoryId }) => {
+      const isShown =
+        matchesRepFilter(site, repFilter) && visibleCategories.has(categoryId)
+      element.style.display = isShown ? '' : 'none'
     })
-  }, [visibleCategories, isMapReady, sites, appCalledSiteIds])
+  }, [repFilter, visibleCategories, isMapReady, sites, appCalledSiteIds])
 
   const toggleCategory = (categoryId) => {
     setVisibleCategories((current) => {
@@ -171,6 +135,19 @@ export default function SiteMap() {
     })
   }
 
+  // Mirrors the marker visibility rule so the legend can report the count.
+  const shownCount = useMemo(
+    () =>
+      sites
+        .filter(hasCoordinates)
+        .filter(
+          (site) =>
+            matchesRepFilter(site, repFilter) &&
+            visibleCategories.has(categorizeSite(site, appCalledSiteIds)),
+        ).length,
+    [sites, repFilter, visibleCategories, appCalledSiteIds],
+  )
+
   const loadError = sitesError ?? callsError
 
   return (
@@ -178,8 +155,12 @@ export default function SiteMap() {
       <div ref={containerRef} className="h-full w-full" />
 
       <MapLegend
+        repFilter={repFilter}
+        onRepFilterChange={setRepFilter}
         visibleCategories={visibleCategories}
         onToggle={toggleCategory}
+        shownCount={shownCount}
+        totalCount={sites.length}
       />
 
       {loadError && (
