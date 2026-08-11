@@ -1,0 +1,49 @@
+# Two services on two ports, as the LAN deployment expects:
+#   frontend  http://<SERVER_HOST>:5173   the React app, served by nginx
+#   backend   http://<SERVER_HOST>:8001   the Django API and admin
+#
+# Set SERVER_HOSTS in .env to this machine's LAN address before starting, or
+# the backend will reject every request that does not arrive via localhost.
+# See .env.example.
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-8001}:8001"
+    environment:
+      # Drives ALLOWED_HOSTS, CORS, and CSRF together; see backend/config/env.py.
+      SERVER_HOSTS: ${SERVER_HOSTS:-localhost,127.0.0.1}
+      FRONTEND_PORT: ${FRONTEND_PORT:-5173}
+      BACKEND_PORT: ${BACKEND_PORT:-8001}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+    volumes:
+      # The SQLite database and every uploaded tracker export. Kept on a named
+      # volume so rebuilding the image does not discard the imported data.
+      - retention-data:/data
+    healthcheck:
+      # Uses the admin login page rather than an API route: it is guaranteed to
+      # exist and does not depend on the database having been seeded yet.
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/admin/login/')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Only the port is compiled in; the hostname comes from the browser.
+        VITE_API_PORT: ${BACKEND_PORT:-8001}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      - backend
+
+volumes:
+  retention-data:

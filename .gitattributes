@@ -1,0 +1,12 @@
+# Normalise line endings in the repository.
+* text=auto
+
+# These are executed by Linux, always. A shell script or Dockerfile checked out
+# with CRLF fails there with a "bad interpreter: /usr/bin/env bash^M" that names
+# no line ending and reads as a missing program, so the ending is pinned rather
+# than left to the checkout platform.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
