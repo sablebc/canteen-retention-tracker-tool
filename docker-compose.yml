@@ -68,6 +68,9 @@ services:
       - proxy
 
 networks:
+  # Declared rather than left implicit, because the frontend names it
+  # explicitly alongside the proxy network.
+  default:
   # The backend stays on the default network only, so the proxy can reach the
   # frontend but has no route to Django directly.
   proxy:
