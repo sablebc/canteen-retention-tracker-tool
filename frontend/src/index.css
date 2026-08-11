@@ -67,7 +67,29 @@
   button {
     font-family: inherit;
     font-size: inherit;
+  }
+
+  /*
+   * Form controls draw their own background, so they state the dark body
+   * colour rather than inheriting: an input inside the teal header would
+   * otherwise render white text on its own white field.
+   */
+  input,
+  select,
+  textarea {
     color: var(--color-body);
+  }
+
+  /*
+   * Buttons take their colour from whatever surrounds them, which is what a
+   * browser does by default and what the utilities assume. Naming the dark
+   * body colour here instead made a button ignore the `text-white` on its
+   * container -- the My Calls column headers came out near-black on the navy
+   * header, at about 1.05:1. Buttons that need a specific colour still say so
+   * themselves, and those utilities outrank this rule.
+   */
+  button {
+    color: inherit;
   }
 
   ::placeholder {

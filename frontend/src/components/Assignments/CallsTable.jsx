@@ -2,8 +2,12 @@ import { OUTCOME_COLORS } from '../../lib/outcomes'
 import { ASC } from '../Grid/sorting'
 import { CALL_COLUMNS, MIN_TABLE_WIDTH, cellStyle } from './callColumns'
 
+// Matches the funnel icons on the Grid's own header, and clears 4.5:1 against
+// the teal behind it; the previous #7E97A5 sat just under it.
+const INACTIVE_CARET = 'text-[#9FB4BF]'
+
 function SortCaret({ active, direction }) {
-  if (!active) return <span className="ml-auto text-[#7E97A5]">↕</span>
+  if (!active) return <span className={`ml-auto ${INACTIVE_CARET}`}>↕</span>
   return <span className="ml-auto">{direction === ASC ? '↑' : '↓'}</span>
 }
 
