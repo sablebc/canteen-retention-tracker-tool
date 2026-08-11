@@ -4,13 +4,14 @@ import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import { useCalls } from '../../hooks/useCalls'
+import { useCurrentRep } from '../../hooks/useCurrentRep'
 import { useSites } from '../../hooks/useSites'
 import { dispatchAssetSelected, getAppCalledSiteIds } from '../../lib/sites'
 import MapLegend from './MapLegend'
 import {
   CATEGORY_COLORS,
-  DEFAULT_REP_FILTER,
   MAP_CATEGORIES,
+  buildRepFilterOptions,
   categorizeSite,
   matchesRepFilter,
 } from './mapCategories'
@@ -51,13 +52,23 @@ export default function SiteMap() {
   // without rebuilding, and so unmount can tear them down before the map.
   const markersRef = useRef([])
   const [isMapReady, setIsMapReady] = useState(false)
-  const [repFilter, setRepFilter] = useState(DEFAULT_REP_FILTER)
   const [visibleCategories, setVisibleCategories] = useState(
     () => new Set(MAP_CATEGORIES.map(({ id }) => id)),
   )
 
   const { sites, loadError: sitesError } = useSites()
   const { calls, loadError: callsError } = useCalls()
+  const { initials: myRep } = useCurrentRep()
+
+  const [repFilter, setRepFilter] = useState(myRep)
+  const repOptions = useMemo(() => buildRepFilterOptions(myRep), [myRep])
+
+  // Switching rep in the header re-points the map at that rep's sites. Without
+  // this the map would keep filtering to the previous rep while every marker
+  // recoloured around it, which reads as a bug rather than a stale filter.
+  useEffect(() => {
+    setRepFilter(myRep)
+  }, [myRep])
 
   const appCalledSiteIds = useMemo(() => getAppCalledSiteIds(calls), [calls])
 
@@ -94,7 +105,7 @@ export default function SiteMap() {
     if (!isMapReady || !map) return undefined
 
     const markers = sites.filter(hasCoordinates).map((site) => {
-      const categoryId = categorizeSite(site, appCalledSiteIds)
+      const categoryId = categorizeSite(site, appCalledSiteIds, myRep)
 
       const element = document.createElement('div')
       element.className = MARKER_WRAPPER_CLASSES
@@ -122,7 +133,7 @@ export default function SiteMap() {
       markers.forEach(({ marker }) => marker.remove())
       markersRef.current = []
     }
-  }, [isMapReady, sites, appCalledSiteIds])
+  }, [isMapReady, sites, appCalledSiteIds, myRep])
 
   // Runs after the marker effect above, so freshly built markers are
   // immediately filtered to the selected rep and checked categories.
@@ -132,7 +143,7 @@ export default function SiteMap() {
         matchesRepFilter(site, repFilter) && visibleCategories.has(categoryId)
       element.style.display = isShown ? '' : 'none'
     })
-  }, [repFilter, visibleCategories, isMapReady, sites, appCalledSiteIds])
+  }, [repFilter, visibleCategories, isMapReady, sites, appCalledSiteIds, myRep])
 
   const toggleCategory = (categoryId) => {
     setVisibleCategories((current) => {
@@ -154,9 +165,9 @@ export default function SiteMap() {
         .filter(
           (site) =>
             matchesRepFilter(site, repFilter) &&
-            visibleCategories.has(categorizeSite(site, appCalledSiteIds)),
+            visibleCategories.has(categorizeSite(site, appCalledSiteIds, myRep)),
         ).length,
-    [sites, repFilter, visibleCategories, appCalledSiteIds],
+    [sites, repFilter, visibleCategories, appCalledSiteIds, myRep],
   )
 
   const loadError = sitesError ?? callsError
@@ -167,6 +178,7 @@ export default function SiteMap() {
 
       <MapLegend
         repFilter={repFilter}
+        repOptions={repOptions}
         onRepFilterChange={setRepFilter}
         visibleCategories={visibleCategories}
         onToggle={toggleCategory}

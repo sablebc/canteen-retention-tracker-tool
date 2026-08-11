@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 
 import { useCalls } from '../../hooks/useCalls'
+import { useCurrentRep } from '../../hooks/useCurrentRep'
 import { useSites } from '../../hooks/useSites'
 import {
-  CURRENT_REP,
   dispatchAssetSelected,
   getAppCalledSiteIds,
   getLatestAnnualRevenue,
@@ -53,6 +53,7 @@ function breakdownText(counts) {
 export default function MyAssignments() {
   const { sites, isLoading: isLoadingSites, loadError } = useSites()
   const { calls, isLoading: isLoadingCalls, loadError: callsError } = useCalls()
+  const { initials: myRep } = useCurrentRep()
 
   const [showCalled, setShowCalled] = useState(false)
   const [branch, setBranch] = useState('')
@@ -65,16 +66,14 @@ export default function MyAssignments() {
   const myAssignments = useMemo(
     () =>
       sites
-        .filter(
-          (site) => site.rep_assignment?.rep_initials === CURRENT_REP.initials,
-        )
+        .filter((site) => site.rep_assignment?.rep_initials === myRep)
         .map((site) => ({
           ...site,
           call_state: calledSiteIds.has(site.id) ? CALLED : PENDING,
           annual_revenue: getLatestAnnualRevenue(site),
           last_call_date: latestCallBySite.get(site.id)?.call_date ?? null,
         })),
-    [sites, calledSiteIds, latestCallBySite],
+    [sites, calledSiteIds, latestCallBySite, myRep],
   )
 
   const branchOptions = useMemo(
@@ -238,7 +237,7 @@ export default function MyAssignments() {
         </span>
       </div>
 
-      <OutcomeLegend sites={filtered} label={`${CURRENT_REP.initials} outcomes`} />
+      <OutcomeLegend sites={filtered} label={`${myRep} outcomes`} />
 
       {callsError && (
         <p className="flex-none border-b border-toolbar-line bg-[#FFF8E6] px-2.5 py-1.5 text-[11px] text-warning-text">

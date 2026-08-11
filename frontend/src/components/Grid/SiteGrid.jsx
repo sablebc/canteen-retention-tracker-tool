@@ -4,12 +4,12 @@ import { AgGridReact } from 'ag-grid-react'
 
 import { patchSite } from '../../api/client'
 import { useCalls } from '../../hooks/useCalls'
+import { useCurrentRep } from '../../hooks/useCurrentRep'
 import { useRevenueRisk } from '../../hooks/useRevenueRisk'
 import { useSites } from '../../hooks/useSites'
 import { splitCityProvince } from '../../lib/address'
 import { OUTCOME_COLORS } from '../../lib/outcomes'
 import {
-  CURRENT_REP,
   dispatchAssetSelected,
   dispatchSiteUpdated,
   formatIsoDate,
@@ -108,6 +108,7 @@ export default function SiteGrid() {
   const { sites, isLoading: isLoadingSites, loadError } = useSites()
   const { calls, isLoading: isLoadingCalls, loadError: callsError } = useCalls()
   const { riskBySite } = useRevenueRisk()
+  const { initials: myRep } = useCurrentRep()
 
   const [search, setSearch] = useState('')
   const [showFilters, setShowFilters] = useState(false)
@@ -205,7 +206,7 @@ export default function SiteGrid() {
 
   const shownCount = displayedCount ?? sites.length
   const assignedCount = sites.filter(
-    (site) => getRepInitials(site) === CURRENT_REP.initials,
+    (site) => getRepInitials(site) === myRep,
   ).length
   const lastSync = getLastSyncDate(sites)
 
@@ -264,7 +265,7 @@ export default function SiteGrid() {
       <div className="flex h-6 flex-none items-center gap-3.5 border-t border-toolbar-line bg-surface px-2.5 text-[11px] text-muted">
         <span className="tabular-nums">{sites.length} sites</span>
         <span className="tabular-nums">
-          {assignedCount} assigned to {CURRENT_REP.initials}
+          {assignedCount} assigned to {myRep}
         </span>
         <span className="ml-auto tabular-nums">
           {lastSync ? `Last sync ${formatIsoDate(lastSync)}` : 'Not yet synced'}

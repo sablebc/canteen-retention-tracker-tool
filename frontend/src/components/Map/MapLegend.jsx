@@ -1,12 +1,16 @@
-import { MAP_CATEGORIES, REP_FILTER_OPTIONS } from './mapCategories'
+import { MAP_CATEGORIES } from './mapCategories'
 
 /**
  * Corner control panel for the map: a rep dropdown, the color legend (each
  * row doubles as a show/hide toggle for that category), and the count of
  * markers currently shown.
+ *
+ * `repOptions` is passed in rather than imported because the list depends on
+ * which rep is currently selected in the header.
  */
 export default function MapLegend({
   repFilter,
+  repOptions,
   onRepFilterChange,
   visibleCategories,
   onToggle,
@@ -22,7 +26,7 @@ export default function MapLegend({
           onChange={(event) => onRepFilterChange(event.target.value)}
           className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
-          {REP_FILTER_OPTIONS.map(({ value, label }) => (
+          {repOptions.map(({ value, label }) => (
             <option key={value} value={value}>
               {label}
             </option>

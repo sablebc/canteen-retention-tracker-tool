@@ -1,14 +1,37 @@
 /**
  * Thin fetch wrapper around the Django REST API.
  *
- * The base URL is configurable per environment via VITE_API_BASE_URL so the
- * same build can point at local, staging, or production backends.
+ * The base URL is resolved at runtime from the address the page was served
+ * from, rather than baked in at build time. Vite inlines `import.meta.env`
+ * values when the bundle is compiled, so a hardcoded host would have to be
+ * correct before `npm run build` and would need a rebuild every time the
+ * server's address changed — and a stale value points the browser at a machine
+ * that isn't there, which surfaces only as an opaque "NetworkError".
+ *
+ * Deriving it from `window.location` means a page served from
+ * http://192.168.2.17:5173 talks to http://192.168.2.17:8001/api without any
+ * configuration at all. VITE_API_BASE_URL still overrides for the cases that
+ * need it (a backend on another machine, or behind a reverse proxy).
  */
 
-const DEFAULT_API_BASE_URL = 'http://localhost:8000/api'
+/** The port Django is served on, matching BACKEND_PORT in the compose file. */
+const DEFAULT_BACKEND_PORT = '8001'
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL
+/** Used only where there is no browser to ask, e.g. a test environment. */
+const FALLBACK_API_BASE_URL = `http://localhost:${DEFAULT_BACKEND_PORT}/api`
+
+function resolveApiBaseUrl() {
+  const configured = import.meta.env.VITE_API_BASE_URL
+  if (configured) return configured
+
+  if (typeof window === 'undefined') return FALLBACK_API_BASE_URL
+
+  const port = import.meta.env.VITE_API_PORT || DEFAULT_BACKEND_PORT
+  const { protocol, hostname } = window.location
+  return `${protocol}//${hostname}:${port}/api`
+}
+
+export const API_BASE_URL = resolveApiBaseUrl()
 
 /**
  * Turn a DRF error body into one readable line.

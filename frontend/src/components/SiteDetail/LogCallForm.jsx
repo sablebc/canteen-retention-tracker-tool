@@ -1,17 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { createCall } from '../../api/client'
+import { useCurrentRep } from '../../hooks/useCurrentRep'
 import { Star } from '../StarRating'
-
-/** Until auth lands, every call is logged as this rep. */
-const DEFAULT_REP_INITIALS = 'BC'
 
 /** The SOP escalates to Q4 whenever the score is short of a 5. */
 const TOP_RATING = 5
 const RATINGS = [1, 2, 3, 4, 5]
 
 const EMPTY_FORM = {
-  rep_initials: DEFAULT_REP_INITIALS,
+  rep_initials: '',
   q1_last_order_feedback: '',
   q2_working_well: '',
   rating: '',
@@ -78,7 +76,13 @@ function Field({ label, hint, highlight, children }) {
  * it is highlighted once the rating falls short of a 5.
  */
 export default function LogCallForm({ siteId, onLogged, onCancel }) {
-  const [form, setForm] = useState(EMPTY_FORM)
+  const { initials: myRep } = useCurrentRep()
+
+  // Pre-filled from the header's rep, but still editable: someone covering
+  // another rep's list should be able to log the call under their own initials.
+  const emptyForm = useMemo(() => ({ ...EMPTY_FORM, rep_initials: myRep }), [myRep])
+
+  const [form, setForm] = useState(emptyForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState(null)
 
@@ -95,7 +99,7 @@ export default function LogCallForm({ siteId, onLogged, onCancel }) {
 
     try {
       const created = await createCall(toPayload(form, siteId))
-      setForm(EMPTY_FORM)
+      setForm(emptyForm)
       onLogged(created)
     } catch (submitError) {
       setError(submitError.message)

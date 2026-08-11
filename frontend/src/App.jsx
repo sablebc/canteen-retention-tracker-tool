@@ -5,8 +5,8 @@ import SiteGrid from './components/Grid/SiteGrid'
 import ImportControl from './components/Import/ImportControl'
 import SiteMap from './components/Map/SiteMap'
 import SiteDetailPanel from './components/SiteDetail/SiteDetailPanel'
+import { useCurrentRep } from './hooks/useCurrentRep'
 import { useSelectedSite } from './hooks/useSelectedSite'
-import { CURRENT_REP } from './lib/sites'
 
 const VIEWS = [
   { id: 'map', label: 'Map', Component: SiteMap },
@@ -15,6 +15,41 @@ const VIEWS = [
 ]
 
 const CYCLE_LABEL = 'FY26 Retention Cycle'
+
+/**
+ * Rep identity picker, standing in for a login until auth lands.
+ *
+ * The choice drives which sites count as "mine" across every view and who a
+ * logged call is attributed to, so it sits in the header where it stays
+ * visible — a rep looking at an unexpectedly empty work list should be able to
+ * see immediately that they are viewing it as someone else.
+ */
+function RepSwitcher() {
+  const { initials, reps, setRep } = useCurrentRep()
+
+  return (
+    <label className="flex items-center gap-[7px]">
+      <span className="sr-only">Viewing as rep</span>
+      <span className="flex h-[22px] w-[22px] flex-none items-center justify-center bg-accent text-[10px] font-bold text-teal-deep">
+        {initials}
+      </span>
+      <select
+        value={initials}
+        onChange={(event) => setRep(event.target.value)}
+        aria-label="Viewing as rep"
+        className="h-[22px] cursor-pointer border border-teal-hairline bg-teal-header px-1 text-[11px] text-white hover:border-accent focus:border-accent focus:outline-none"
+      >
+        {reps.map((rep) => (
+          // Options render on the system menu background, not the teal bar, so
+          // they need their own colours to stay legible.
+          <option key={rep} value={rep} className="bg-white text-body">
+            Rep {rep}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
 
 /** The 48px brand bar: logo mark, title, tab switcher, and rep identity. */
 function AppHeader({ view, onViewChange }) {
@@ -54,14 +89,7 @@ function AppHeader({ view, onViewChange }) {
         <span className="h-[18px] w-px flex-none bg-teal-hairline" />
         <span className="hidden whitespace-nowrap xl:inline">{CYCLE_LABEL}</span>
         <span className="hidden h-[18px] w-px flex-none bg-teal-hairline xl:block" />
-        <span className="flex items-center gap-[7px]">
-          <span className="flex h-[22px] w-[22px] flex-none items-center justify-center bg-accent text-[10px] font-bold text-teal-deep">
-            {CURRENT_REP.initials}
-          </span>
-          <span className="whitespace-nowrap text-white">
-            {CURRENT_REP.displayName}
-          </span>
-        </span>
+        <RepSwitcher />
       </div>
     </header>
   )

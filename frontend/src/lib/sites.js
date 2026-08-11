@@ -9,16 +9,13 @@
 /** Placeholder shown wherever a site has no value for a column. */
 export const EM_DASH = '—'
 
-/** Until auth lands, "my" sites and calls mean this rep's. */
-export const MY_REP_INITIALS = 'BC'
-
 /**
- * The signed-in rep, shown in the header and used as the call-logging author.
- * `displayName` is a placeholder until auth supplies the real one.
+ * Every rep in the tracker, in the order the filters list them.
+ *
+ * These are the complete set the ingest finds in the export's RS column. Which
+ * of them *you* are is a runtime choice rather than a constant — see
+ * `useCurrentRep` — so one deployment can serve the whole team.
  */
-export const CURRENT_REP = { initials: MY_REP_INITIALS, displayName: 'Rep BC' }
-
-/** Every rep in the tracker, in the order the filters list them. */
 export const REP_ORDER = ['BC', 'AJ', 'CM', 'WH']
 
 /**
