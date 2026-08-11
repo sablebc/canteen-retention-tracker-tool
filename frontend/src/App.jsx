@@ -29,21 +29,23 @@ function RepSwitcher() {
 
   return (
     <label className="flex items-center gap-[7px]">
-      <span className="sr-only">Viewing as rep</span>
-      <span className="flex h-[22px] w-[22px] flex-none items-center justify-center bg-accent text-[10px] font-bold text-teal-deep">
-        {initials}
-      </span>
+      {/*
+        The word stays put and only the initials change: it sits outside the
+        control rather than inside every option, so switching rep does not
+        reflow the label next to it.
+      */}
+      <span className="whitespace-nowrap font-medium text-white">Rep</span>
       <select
         value={initials}
         onChange={(event) => setRep(event.target.value)}
         aria-label="Viewing as rep"
-        className="h-[22px] cursor-pointer border border-teal-hairline bg-teal-header px-1 text-[11px] text-white hover:border-accent focus:border-accent focus:outline-none"
+        className="h-[22px] cursor-pointer border border-teal-hairline bg-teal-header px-1 text-[11px] font-bold text-white hover:border-accent focus:border-accent focus:outline-none"
       >
         {reps.map((rep) => (
           // Options render on the system menu background, not the teal bar, so
           // they need their own colours to stay legible.
           <option key={rep} value={rep} className="bg-white text-body">
-            Rep {rep}
+            {rep}
           </option>
         ))}
       </select>
@@ -56,8 +58,17 @@ function AppHeader({ view, onViewChange }) {
   return (
     <header className="flex h-12 flex-none items-stretch border-b border-teal-deep bg-teal-header pl-4 text-white">
       <div className="flex items-center gap-2.5 pr-7">
-        {/* Placeholder for the Canteen Canada mark. */}
-        <div className="h-[18px] w-[18px] flex-none bg-accent" />
+        {/*
+          Decorative: the wordmark beside it already names the app, so an alt
+          text here would only make a screen reader announce it twice.
+        */}
+        <img
+          src="/canteen.png"
+          alt=""
+          width={18}
+          height={18}
+          className="h-[18px] w-[18px] flex-none"
+        />
         <div className="whitespace-nowrap text-[14px] font-semibold tracking-[0.02em]">
           Canteen Retention Tracker
         </div>
