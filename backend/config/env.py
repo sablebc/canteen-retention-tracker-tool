@@ -82,6 +82,49 @@ def parse_hosts(raw: str | None) -> list[str]:
     return _dedupe(hosts)
 
 
+def origin_scheme(origin: str | None) -> str:
+    """Return the scheme of ``origin``, defaulting to http.
+
+    A LAN deployment behind a proxy that terminates nothing is the common case
+    here, so an origin written without a scheme is read as plain http rather
+    than rejected.
+    """
+    if not origin:
+        return "http"
+    scheme = urlsplit(origin.strip()).scheme
+    return scheme.lower() if scheme else "http"
+
+
+def origin_host(origin: str | None) -> str:
+    """Return the bare hostname of ``origin``, for ALLOWED_HOSTS."""
+    if not origin:
+        return ""
+    return _clean_host(origin.strip())
+
+
+def normalize_origin(origin: str | None) -> str:
+    """Reduce ``origin`` to the exact scheme://host[:port] a browser sends.
+
+    CSRF_TRUSTED_ORIGINS compares literally, so a trailing slash or a path left
+    on the end matches nothing at all - and the failure appears as a rejected
+    admin login rather than as a configuration error.
+    """
+    if not origin or not origin.strip():
+        return ""
+
+    text = origin.strip()
+    scheme = origin_scheme(text)
+    host = origin_host(text)
+    if not host:
+        return ""
+
+    parts = urlsplit(text if "//" in text else f"//{text}")
+    port = parts.port
+    if port is None or str(port) == DEFAULT_PORTS.get(scheme):
+        return f"{scheme}://{host}"
+    return f"{scheme}://{host}:{port}"
+
+
 def build_origins(hosts: list[str], port: str, scheme: str = "http") -> list[str]:
     """Build the browser origins for ``hosts`` served on ``port``.
 

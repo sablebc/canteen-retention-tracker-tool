@@ -25,6 +25,7 @@ from retention.deploy_checks import (
     check_cors_origins,
     check_debug,
     check_geocoding,
+    check_public_origin,
     check_secret_key,
     check_seeded,
     check_upload_dir,
@@ -74,12 +75,14 @@ class Command(BaseCommand):
 
         allowed_hosts = list(settings.ALLOWED_HOSTS)
         cors_origins = list(settings.CORS_ALLOWED_ORIGINS)
+        public_origin = getattr(settings, "PUBLIC_ORIGIN", "")
 
         return [
             check_secret_key(settings.SECRET_KEY),
             check_debug(settings.DEBUG),
+            check_public_origin(public_origin, allowed_hosts),
             check_allowed_hosts(allowed_hosts),
-            check_cors_origins(cors_origins),
+            check_cors_origins(cors_origins, same_origin=bool(public_origin)),
             check_cors_matches_allowed_hosts(cors_origins, allowed_hosts),
             check_upload_dir(settings.TRACKER_UPLOAD_DIR),
             check_seeded(site_count),

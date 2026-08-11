@@ -7,7 +7,14 @@ scheme pasted into a host list, a port left on a hostname.
 """
 from django.test import SimpleTestCase
 
-from config.env import build_origins, parse_hosts, split_env
+from config.env import (
+    build_origins,
+    normalize_origin,
+    origin_host,
+    origin_scheme,
+    parse_hosts,
+    split_env,
+)
 
 
 class SplitEnvTests(SimpleTestCase):
@@ -90,3 +97,57 @@ class BuildOriginsTests(SimpleTestCase):
         # "http://host:80" is not the origin a browser sends; it sends
         # "http://host", so a listed :80 origin would never match.
         self.assertEqual(build_origins(["example.local"], "80"), ["http://example.local"])
+
+
+class PublicOriginTests(SimpleTestCase):
+    """PUBLIC_ORIGIN is the address the reverse proxy publishes.
+
+    It is typed by hand into a .env, so it arrives in whatever shape seemed
+    reasonable at the time - with a trailing slash, without a scheme, with the
+    scheme in caps.
+    """
+
+    def test_reads_the_host_out_of_an_origin(self):
+        self.assertEqual(origin_host("http://canteen.lan"), "canteen.lan")
+
+    def test_reads_the_host_when_a_port_is_present(self):
+        self.assertEqual(origin_host("https://canteen.lan:8443"), "canteen.lan")
+
+    def test_tolerates_a_missing_scheme(self):
+        self.assertEqual(origin_host("canteen.lan"), "canteen.lan")
+
+    def test_tolerates_a_trailing_slash(self):
+        self.assertEqual(origin_host("http://canteen.lan/"), "canteen.lan")
+
+    def test_host_of_nothing_is_empty(self):
+        self.assertEqual(origin_host(""), "")
+        self.assertEqual(origin_host(None), "")
+
+    def test_scheme_defaults_to_http(self):
+        self.assertEqual(origin_scheme("canteen.lan"), "http")
+
+    def test_scheme_is_read_when_given(self):
+        self.assertEqual(origin_scheme("https://canteen.lan"), "https")
+
+    def test_scheme_is_lowercased(self):
+        self.assertEqual(origin_scheme("HTTPS://canteen.lan"), "https")
+
+    def test_normalize_adds_a_missing_scheme(self):
+        self.assertEqual(normalize_origin("canteen.lan"), "http://canteen.lan")
+
+    def test_normalize_strips_a_trailing_slash(self):
+        # A CSRF trusted origin with a trailing slash matches nothing.
+        self.assertEqual(normalize_origin("http://canteen.lan/"), "http://canteen.lan")
+
+    def test_normalize_keeps_a_nondefault_port(self):
+        self.assertEqual(
+            normalize_origin("http://canteen.lan:8080/"), "http://canteen.lan:8080"
+        )
+
+    def test_normalize_drops_a_path(self):
+        self.assertEqual(
+            normalize_origin("http://canteen.lan/app"), "http://canteen.lan"
+        )
+
+    def test_normalize_of_nothing_is_empty(self):
+        self.assertEqual(normalize_origin(""), "")

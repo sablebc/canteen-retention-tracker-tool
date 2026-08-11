@@ -105,9 +105,57 @@ def check_allowed_hosts(hosts: list[str]) -> CheckResult:
     )
 
 
-def check_cors_origins(origins: list[str]) -> CheckResult:
-    """CORS entries must be bare scheme://host[:port] origins, or they never match."""
+def check_public_origin(public_origin: str, hosts: list[str]) -> CheckResult:
+    """The proxy's published host must be an allowed host.
+
+    A reverse proxy forwards the browser's Host header unchanged, so if that
+    name is not allowed here, every request arriving through the proxy is
+    answered 400 - which is all the browser will ever show for it.
+    """
+    if not public_origin:
+        return CheckResult(
+            "PUBLIC_ORIGIN",
+            OK,
+            "No reverse proxy configured; the app is served directly.",
+        )
+
+    if "*" in hosts:
+        return CheckResult(
+            "PUBLIC_ORIGIN", OK, f"Published at {public_origin} (any host allowed)."
+        )
+
+    host = urlsplit(public_origin).hostname or ""
+    if host not in set(hosts):
+        return CheckResult(
+            "PUBLIC_ORIGIN",
+            FAIL,
+            f"The proxy publishes this app at {public_origin}, but '{host}' is "
+            f"not in ALLOWED_HOSTS. Every request arriving through the proxy "
+            f"will be answered 400. Allowed: {', '.join(hosts)}",
+        )
+
+    return CheckResult(
+        "PUBLIC_ORIGIN",
+        OK,
+        f"Published at {public_origin}; frontend and API share this origin, so "
+        f"CORS is not involved.",
+    )
+
+
+def check_cors_origins(origins: list[str], same_origin: bool = False) -> CheckResult:
+    """CORS entries must be bare scheme://host[:port] origins, or they never match.
+
+    ``same_origin`` is set when a proxy serves the whole app from one address.
+    There is then no cross-origin request to permit, so an empty list is the
+    correct configuration rather than a broken one.
+    """
     if not origins:
+        if same_origin:
+            return CheckResult(
+                "CORS_ALLOWED_ORIGINS",
+                OK,
+                "None needed: the frontend and API share an origin.",
+            )
         return CheckResult(
             "CORS_ALLOWED_ORIGINS",
             FAIL,

@@ -1,34 +1,47 @@
-# Two services on two ports, as the LAN deployment expects:
-#   frontend  http://<SERVER_HOST>:5173   the React app, served by nginx
-#   backend   http://<SERVER_HOST>:8001   the Django API and admin
+# Deployment behind a reverse proxy (Nginx Proxy Manager, Traefik, Caddy).
 #
-# Set SERVER_HOSTS in .env to this machine's LAN address before starting, or
-# the backend will reject every request that does not arrive via localhost.
-# See .env.example.
+# Neither service publishes a host port. The proxy reaches the frontend
+# container over a shared Docker network, and the frontend proxies /api,
+# /admin, and /static onward to the backend itself - so the whole app lives at
+# one address and the browser never makes a cross-origin request.
+#
+# In Nginx Proxy Manager, add ONE proxy host:
+#     Domain:            canteen.lan          (whatever you set PUBLIC_ORIGIN to)
+#     Forward Hostname:  canteen-frontend
+#     Forward Port:      80
+#     Websockets:        off
+# No custom locations are needed.
+#
+# NPM must share a network with this stack; set NPM_NETWORK in .env to the one
+# its container is on. Find it with:
+#     docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}' <npm-container>
+#
+# To publish ports directly instead, without any proxy, use:
+#     docker compose -f docker-compose.direct.yml up -d --build
 
 services:
   backend:
+    container_name: canteen-backend
     build: ./backend
     restart: unless-stopped
-    ports:
-      - "${BACKEND_PORT:-8001}:8001"
     environment:
-      # Drives ALLOWED_HOSTS, CORS, and CSRF together; see backend/config/env.py.
+      # The address the proxy publishes. Drives ALLOWED_HOSTS and the CSRF
+      # trusted origin; switching it to https also turns on the proxy-aware
+      # TLS settings. See backend/config/settings.py.
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?set PUBLIC_ORIGIN in .env, e.g. http://canteen.lan}
       SERVER_HOSTS: ${SERVER_HOSTS:-localhost,127.0.0.1}
-      FRONTEND_PORT: ${FRONTEND_PORT:-5173}
-      BACKEND_PORT: ${BACKEND_PORT:-8001}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
       DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
     volumes:
-      # The SQLite database and every uploaded tracker export. Kept on a named
+      # The SQLite database and every uploaded tracker export. On a named
       # volume so rebuilding the image does not discard the imported data.
       - retention-data:/data
     healthcheck:
-      # A plain TCP connect, deliberately not an HTTP request. Anything that
-      # asks Django for a page from inside the container arrives with a Host of
-      # 127.0.0.1, which SERVER_HOSTS need not include - a server correctly
-      # configured for its LAN address alone would answer 400 and report itself
-      # unhealthy while serving every real user perfectly well.
+      # A plain TCP connect, deliberately not an HTTP request. Anything asking
+      # Django for a page from inside the container arrives with a Host of
+      # 127.0.0.1, which need not be an allowed host - a correctly configured
+      # server would answer 400 and report itself unhealthy while serving every
+      # real user perfectly well.
       test: ["CMD", "python", "-c",
              "import socket; socket.create_connection(('127.0.0.1', 8001), timeout=3).close()"]
       interval: 30s
@@ -37,16 +50,29 @@ services:
       start_period: 20s
 
   frontend:
+    container_name: canteen-frontend
     build:
       context: ./frontend
       args:
-        # Only the port is compiled in; the hostname comes from the browser.
-        VITE_API_PORT: ${BACKEND_PORT:-8001}
+        # Relative, so the bundle carries no hostname and works at any address.
+        VITE_API_BASE_URL: /api
     restart: unless-stopped
-    ports:
-      - "${FRONTEND_PORT:-5173}:80"
     depends_on:
-      - backend
+      backend:
+        # nginx resolves the backend lazily, so this is not required to avoid a
+        # startup race - it just keeps the app from answering before the
+        # migrations behind it have finished.
+        condition: service_healthy
+    networks:
+      - default
+      - proxy
+
+networks:
+  # The backend stays on the default network only, so the proxy can reach the
+  # frontend but has no route to Django directly.
+  proxy:
+    external: true
+    name: ${NPM_NETWORK:-npm_default}
 
 volumes:
   retention-data:

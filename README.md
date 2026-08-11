@@ -15,66 +15,89 @@ overwritten by a re-import.
 
 ---
 
-## Deploying to a server on the LAN
+## Deploying behind a reverse proxy
 
-Requires Docker and Docker Compose on the server.
+The default setup expects a reverse proxy such as Nginx Proxy Manager. Neither
+container publishes a port; the proxy reaches the frontend, and the frontend
+proxies `/api`, `/admin`, and `/static` onward to the backend itself.
+
+That means the whole app lives at **one address**. The browser only ever talks
+to a single origin, so its requests are same-origin and CORS is never consulted
+- not "configured correctly", but not involved at all.
 
 ```bash
 git clone https://github.com/sablebc/canteen-retention-tracker-tool.git
 cd canteen-retention-tracker-tool
-
 cp .env.example .env
 ```
 
-**Edit `.env` and set `SERVER_HOSTS` to the server's LAN address.** This is the
-one setting that must be right:
+Edit `.env`:
 
 ```bash
-SERVER_HOSTS=192.168.2.17,localhost,127.0.0.1
-DJANGO_SECRET_KEY=<generate one, see below>
+PUBLIC_ORIGIN=http://canteen.lan     # the address people will type
+DJANGO_SECRET_KEY=...                # python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+NPM_NETWORK=npm_default              # the Docker network your proxy runs on
 ```
 
-```bash
-# Generate a real secret key
-python3 -c "import secrets; print(secrets.token_urlsafe(64))"
+Find your proxy's network with:
 
+```bash
+docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' <npm-container>
+```
+
+Then:
+
+```bash
 docker compose up -d --build
 ```
 
-Then confirm it is actually reachable - **ideally from a different machine**:
+In Nginx Proxy Manager, add **one** proxy host. No custom locations are needed:
 
-```bash
-./scripts/preflight.sh 192.168.2.17
+| Field | Value |
+|---|---|
+| Domain Names | `canteen.lan` (matching `PUBLIC_ORIGIN`) |
+| Scheme | `http` |
+| Forward Hostname / IP | `canteen-frontend` |
+| Forward Port | `80` |
+| Websockets Support | off |
+
+Under the proxy host's **Advanced** tab, allow the tracker upload through:
+
+```
+client_max_body_size 32m;
 ```
 
-Open `http://192.168.2.17:5173`.
+Finally, verify from another machine:
 
-### Why SERVER_HOSTS matters
+```bash
+./scripts/preflight.sh http://canteen.lan
+```
 
-Django refuses any request whose `Host` header is not in `ALLOWED_HOSTS`,
-answering **400 before the CORS middleware runs**. The browser therefore
-receives a response with no CORS headers, discards it, and reports only:
+### Why PUBLIC_ORIGIN matters
+
+A reverse proxy forwards the browser's `Host` header unchanged, and Django
+refuses any host it was not told about - answering **400 before any other
+middleware runs**. The browser reports that only as:
 
 > NetworkError when attempting to fetch resource
 
-That message is identical whether the cause is a rejected host, a missing CORS
-origin, or nothing listening at all - which makes it near-impossible to
-diagnose from the browser. `SERVER_HOSTS` drives `ALLOWED_HOSTS`,
-`CORS_ALLOWED_ORIGINS`, and `CSRF_TRUSTED_ORIGINS` from one value so they cannot
-disagree, and `check_deploy` fails loudly if they ever do.
+`PUBLIC_ORIGIN` is what tells Django to accept the name. It also becomes the
+CSRF trusted origin, and switching it to `https://` turns on the proxy-aware
+TLS settings by itself. It is the one value that has to be right.
 
-The frontend finds the API by taking the hostname from the browser's address bar
-and adding the backend port, so **changing the server's IP needs no rebuild** -
-only `SERVER_HOSTS` and a restart.
+### Serving without a proxy
 
-### Firewall
-
-Both ports must be open to the LAN:
+To publish a port directly instead:
 
 ```bash
-sudo ufw allow 5173/tcp   # frontend
-sudo ufw allow 8001/tcp   # API
+# set SERVER_HOSTS=192.168.2.17,localhost in .env first
+docker compose -f docker-compose.direct.yml up -d --build
+sudo ufw allow 5173/tcp
+./scripts/preflight.sh 192.168.2.17
 ```
+
+Only the frontend publishes a port; it still proxies `/api` internally, so this
+is single-origin too and the backend never needs to be reachable directly.
 
 ---
 
@@ -90,7 +113,7 @@ changed is shown. This is also how you refresh the data later.
 **From the command line:**
 
 ```bash
-docker cp ./Retention_Tracker.xlsx "$(docker compose ps -q backend)":/data/uploads/
+docker cp ./Retention_Tracker.xlsx canteen-backend:/data/uploads/
 docker compose exec backend python manage.py ingest_tracker /data/uploads/Retention_Tracker.xlsx
 ```
 
@@ -136,15 +159,19 @@ Two complementary checks - run both.
 # From inside: configuration, seed state, geocoding coverage
 docker compose exec backend python manage.py check_deploy
 
-# From outside: connectivity, ALLOWED_HOSTS, CORS headers, upload endpoint
-./scripts/preflight.sh 192.168.2.17
+# From outside: routing, hostname acceptance, uploads, static files
+./scripts/preflight.sh http://canteen.lan
 ```
 
-`check_deploy` catches misconfiguration that looks correct - most importantly a
-CORS origin whose host is missing from `ALLOWED_HOSTS`. `preflight.sh` catches
-what only shows up over the network: a service bound to localhost, a closed
-firewall port. Run it from another machine when you can; several of its checks
-pass trivially when run on the server itself.
+`check_deploy` catches configuration that looks correct but is not - a proxy
+hostname missing from `ALLOWED_HOSTS`, a placeholder secret key, an unseeded
+database. It also runs on every container start, so the result is in
+`docker compose logs backend`.
+
+`preflight.sh` checks what a browser actually receives, which is the only way to
+catch a closed firewall port, a proxy pointed at the wrong container, or a
+hostname that does not resolve. Run it from another machine when you can;
+several of its checks pass trivially on the server itself.
 
 ---
 
@@ -170,6 +197,10 @@ npm run dev          # localhost only
 npm run dev:lan      # reachable from other machines on the network
 ```
 
+In development the two run on separate ports, so the frontend calls the API
+cross-origin and CORS does apply. `SERVER_HOSTS` and `FRONTEND_PORT` drive the
+allowed origins; the defaults cover `localhost:5173`.
+
 `runserver` and `vite` are development servers - use the Docker setup for
 anything others rely on.
 
@@ -189,7 +220,7 @@ sites count as "mine" across every view and who a logged call is attributed to.
 The choice is remembered per browser.
 
 This is **not** a security boundary - anyone can select any rep, and every
-endpoint is open to anyone who can reach the server. That is a deliberate
+endpoint is open to anyone who can reach the app. That is a deliberate
 trade-off for a trusted internal network; do not expose this deployment to the
 internet.
 
@@ -198,13 +229,16 @@ internet.
 ## Layout
 
 ```
-backend/          Django + DRF
-  config/         settings, URL roots, environment parsing
-  retention/      models, API, tracker ingest, geocoding, deploy checks
-  analysis/       revenue-risk scoring (stub; returns 501)
-frontend/         React + Vite + Tailwind, MapLibre, AG Grid
-data/raw/         drop tracker exports here (gitignored)
-scripts/          preflight.sh
+backend/                  Django + DRF
+  config/                 settings, URL roots, environment parsing
+  retention/              models, API, tracker ingest, geocoding, deploy checks
+  analysis/               revenue-risk scoring (stub; returns 501)
+frontend/                 React + Vite + Tailwind, MapLibre, AG Grid
+  nginx.conf              serves the SPA and proxies /api to the backend
+data/raw/                 drop tracker exports here (gitignored)
+scripts/preflight.sh      check a running deployment from outside
+docker-compose.yml        behind a reverse proxy (default)
+docker-compose.direct.yml published port, no proxy
 ```
 
 Data lives on the `retention-data` Docker volume - the SQLite database and every

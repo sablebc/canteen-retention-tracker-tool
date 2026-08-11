@@ -1,0 +1,48 @@
+# Deployment without a reverse proxy: reach the app at http://<server>:5173.
+#
+#     docker compose -f docker-compose.direct.yml up -d --build
+#
+# Only the frontend publishes a port. It proxies /api, /admin, and /static to
+# the backend itself, so the app is still on a single origin and CORS is still
+# never involved - the backend does not need to be reachable from the network
+# at all.
+#
+# Set SERVER_HOSTS in .env to this machine's LAN address, or Django answers 400
+# to every browser that is not on the server itself.
+
+services:
+  backend:
+    container_name: canteen-backend
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      SERVER_HOSTS: ${SERVER_HOSTS:-localhost,127.0.0.1}
+      FRONTEND_PORT: ${FRONTEND_PORT:-5173}
+      BACKEND_PORT: ${BACKEND_PORT:-8001}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
+    volumes:
+      - retention-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import socket; socket.create_connection(('127.0.0.1', 8001), timeout=3).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    container_name: canteen-frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  retention-data:

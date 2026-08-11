@@ -13,6 +13,8 @@ from config.env import (
     DEFAULT_BACKEND_PORT,
     DEFAULT_FRONTEND_PORT,
     build_origins,
+    normalize_origin,
+    origin_host,
     parse_hosts,
     split_env,
 )
@@ -48,7 +50,27 @@ SERVER_HOSTS = parse_hosts(os.environ.get("SERVER_HOSTS", "localhost,127.0.0.1")
 FRONTEND_PORT = os.environ.get("FRONTEND_PORT", DEFAULT_FRONTEND_PORT)
 BACKEND_PORT = os.environ.get("BACKEND_PORT", DEFAULT_BACKEND_PORT)
 
-ALLOWED_HOSTS = parse_hosts(os.environ.get("DJANGO_ALLOWED_HOSTS")) or SERVER_HOSTS
+# The single address a reverse proxy publishes the whole app on, e.g.
+# "http://canteen.lan". When set, the frontend and API share an origin: the
+# browser's requests are same-origin, so CORS is not merely configured
+# correctly, it is never consulted. Only the host still has to be accepted,
+# which is why it joins ALLOWED_HOSTS below.
+PUBLIC_ORIGIN = normalize_origin(os.environ.get("PUBLIC_ORIGIN"))
+PUBLIC_HOST = origin_host(PUBLIC_ORIGIN)
+
+_derived_hosts = list(
+    dict.fromkeys(SERVER_HOSTS + ([PUBLIC_HOST] if PUBLIC_HOST else []))
+)
+ALLOWED_HOSTS = parse_hosts(os.environ.get("DJANGO_ALLOWED_HOSTS")) or _derived_hosts
+
+# Behind a proxy terminating TLS, the request reaching Django arrives over
+# plain HTTP. Without this it would consider the connection insecure and
+# refuse to set the cookies it marks secure, which surfaces as an admin login
+# that silently never takes.
+if PUBLIC_ORIGIN.startswith("https://"):
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 # Directory holding the R analysis scripts, a sibling of backend/.
 R_SCRIPTS_DIR = BASE_DIR.parent / "r"
@@ -170,11 +192,15 @@ CORS_ALLOWED_ORIGINS = split_env(
     os.environ.get("DJANGO_CORS_ALLOWED_ORIGINS")
 ) or build_origins(SERVER_HOSTS, FRONTEND_PORT)
 
-# The frontend origins, plus this server's own — the latter so the Django admin
-# and the browsable API still accept POSTs when reached over the network rather
-# than through localhost.
+# The frontend origins, this server's own, and the proxy's published address —
+# so the Django admin and the browsable API accept POSTs however they are
+# reached: directly over the network, or through the reverse proxy.
 CSRF_TRUSTED_ORIGINS = list(
-    dict.fromkeys(CORS_ALLOWED_ORIGINS + build_origins(SERVER_HOSTS, BACKEND_PORT))
+    dict.fromkeys(
+        CORS_ALLOWED_ORIGINS
+        + build_origins(SERVER_HOSTS, BACKEND_PORT)
+        + ([PUBLIC_ORIGIN] if PUBLIC_ORIGIN else [])
+    )
 )
 
 REST_FRAMEWORK = {

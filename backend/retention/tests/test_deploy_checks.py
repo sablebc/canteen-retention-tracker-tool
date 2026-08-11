@@ -20,6 +20,7 @@ from retention.deploy_checks import (
     check_cors_origins,
     check_debug,
     check_geocoding,
+    check_public_origin,
     check_secret_key,
     check_seeded,
     check_upload_dir,
@@ -99,6 +100,33 @@ class CorsMatchesHostsTests(SimpleTestCase):
     def test_passes_when_allowed_hosts_is_wildcarded(self):
         result = check_cors_matches_allowed_hosts(["http://anything:5173"], ["*"])
         self.assertEqual(result.status, OK)
+
+
+class PublicOriginTests(SimpleTestCase):
+    def test_fails_when_the_proxy_host_is_not_allowed(self):
+        # The proxy forwards the browser's Host, so an unlisted one is a 400
+        # for every request that arrives through it.
+        result = check_public_origin("http://canteen.lan", ["localhost"])
+        self.assertEqual(result.status, FAIL)
+        self.assertIn("canteen.lan", result.message)
+
+    def test_passes_when_the_proxy_host_is_allowed(self):
+        result = check_public_origin("http://canteen.lan", ["canteen.lan", "localhost"])
+        self.assertEqual(result.status, OK)
+
+    def test_reports_direct_serving_when_unset(self):
+        result = check_public_origin("", ["localhost"])
+        self.assertEqual(result.status, OK)
+        self.assertIn("No reverse proxy", result.message)
+
+
+class CorsWhenSameOriginTests(SimpleTestCase):
+    def test_empty_cors_is_fine_behind_a_proxy(self):
+        # Same-origin requests never consult CORS, so nothing to allow.
+        self.assertEqual(check_cors_origins([], same_origin=True).status, OK)
+
+    def test_empty_cors_still_fails_when_serving_two_origins(self):
+        self.assertEqual(check_cors_origins([], same_origin=False).status, FAIL)
 
 
 class SeededTests(SimpleTestCase):
