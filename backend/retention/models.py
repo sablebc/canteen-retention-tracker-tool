@@ -21,6 +21,20 @@ class CallOutcome(models.TextChoices):
     TEMP_CLOSED = "temp_closed", "Temp closed due to season"
 
 
+class ContactMethod(models.TextChoices):
+    """How this site's contact prefers to be reached.
+
+    Distinct from ``Site.method_of_ordering``, which comes from the tracker and
+    records how the site places orders. This is about reaching the person, is
+    set in this tool, and so must survive an ingest run untouched.
+    """
+
+    PHONE = "phone", "Phone"
+    EMAIL = "email", "Email"
+    TEXT = "text", "Text message"
+    IN_PERSON = "in_person", "In person"
+
+
 class Site(models.Model):
     """A canteen/vending site tracked for retention purposes.
 
@@ -48,6 +62,12 @@ class Site(models.Model):
     # the site, and deliberately excluded from the ingest command's writes.
     call_outcome = models.CharField(
         max_length=32, choices=CallOutcome.choices, blank=True, default=""
+    )
+    # Also tool-owned, and likewise absent from the ingest's writes. Blank
+    # means nobody has recorded a preference yet, which is not the same as
+    # there being none.
+    contact_method = models.CharField(
+        max_length=32, choices=ContactMethod.choices, blank=True, default=""
     )
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)

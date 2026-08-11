@@ -8,14 +8,15 @@ from .models import CallRecord, ImportLog, RepAssignment, RevenueSnapshot, Site
 # on a Site comes from the tracker export and is overwritten on the next
 # ingest, so allowing edits elsewhere would silently lose the change.
 #
-# ``call_outcome`` is the exception that is *not* tracker-owned: it is this
-# tool's own classification and survives an ingest run.
+# ``call_outcome`` and ``contact_method`` are the exceptions that are *not*
+# tracker-owned: they are this tool's own data and survive an ingest run.
 EDITABLE_SITE_FIELDS = (
     "method_of_ordering",
     "contact_name",
     "lob",
     "phone_number",
     "call_outcome",
+    "contact_method",
 )
 
 
@@ -54,6 +55,7 @@ class SiteSerializer(serializers.ModelSerializer):
             "method_of_ordering",
             "account_status",
             "call_outcome",
+            "contact_method",
             "last_order_date",
             "latitude",
             "longitude",

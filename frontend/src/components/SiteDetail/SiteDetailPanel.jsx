@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { getCallsForSite, patchSite } from '../../api/client'
 import {
+  EM_DASH,
   daysSince,
   dispatchCallLogged,
   dispatchSiteUpdated,
@@ -11,12 +12,15 @@ import {
   formatText,
   getLatestAnnualRevenue,
   getLatestF25Revenue,
+  getRepInitials,
   isBlank,
 } from '../../lib/sites'
+import { CONTACT_METHODS } from '../../lib/contactMethods'
 import { statusClasses } from '../../lib/statusStyles'
 import CallHistory from './CallHistory'
 import CallOutcomeField from './CallOutcomeField'
 import EditableField from './EditableField'
+import EditableSelect from './EditableSelect'
 import LogCallForm from './LogCallForm'
 
 /** Site fields the API accepts a PATCH for, in the order they are shown.
@@ -49,6 +53,29 @@ function ReadOnlyField({ label, value, className = '' }) {
   )
 }
 
+/** A date with the gap since it spelled out beside it, greyed or emphasised. */
+function DateWithAge({ label, date, emptyText, stale = false }) {
+  if (isBlank(date)) {
+    return <ReadOnlyField label={label} value={emptyText} />
+  }
+
+  return (
+    <ReadOnlyField
+      label={label}
+      value={
+        <>
+          <span>{formatIsoDate(date)}</span>
+          <span
+            className={`ml-1.5 ${stale ? 'font-medium text-warning-text' : 'text-gray-500'}`}
+          >
+            ({formatDaysSince(date)})
+          </span>
+        </>
+      }
+    />
+  )
+}
+
 /**
  * The last order date with the gap since it spelled out beside it.
  *
@@ -57,23 +84,38 @@ function ReadOnlyField({ label, value, className = '' }) {
  */
 function LastOrderField({ lastOrderDate }) {
   const days = daysSince(lastOrderDate)
-  const isStale = days !== null && days >= STALE_AFTER_DAYS
 
   return (
-    <ReadOnlyField
+    <DateWithAge
       label="Last Order Date"
-      value={
-        <>
-          <span>{formatIsoDate(lastOrderDate)}</span>
-          {!isBlank(lastOrderDate) && (
-            <span
-              className={`ml-1.5 ${isStale ? 'font-medium text-warning-text' : 'text-gray-500'}`}
-            >
-              ({formatDaysSince(lastOrderDate)})
-            </span>
-          )}
-        </>
-      }
+      date={lastOrderDate}
+      emptyText={EM_DASH}
+      stale={days !== null && days >= STALE_AFTER_DAYS}
+    />
+  )
+}
+
+/**
+ * When this site was last called, from its own call history.
+ *
+ * Only calls carrying a date can be reported, which in practice means calls
+ * logged in this tool: the tracker import brings no call date, so a site whose
+ * whole history came from the spreadsheet correctly reads as never called.
+ */
+function LastCalledField({ calls, isLoading }) {
+  if (isLoading) {
+    return <ReadOnlyField label="Last Called" value={EM_DASH} />
+  }
+
+  const latest = calls.find((call) => !isBlank(call.call_date))
+  const days = daysSince(latest?.call_date)
+
+  return (
+    <DateWithAge
+      label="Last Called"
+      date={latest?.call_date}
+      emptyText="Never called"
+      stale={days !== null && days >= STALE_AFTER_DAYS}
     />
   )
 }
@@ -204,7 +246,12 @@ export default function SiteDetailPanel({ site, onClose }) {
               className="col-span-2"
             />
             <ReadOnlyField label="Branch" value={formatText(current.branch)} />
+            <ReadOnlyField
+              label="Assigned Rep"
+              value={formatText(getRepInitials(current))}
+            />
             <LastOrderField lastOrderDate={current.last_order_date} />
+            <LastCalledField calls={calls} isLoading={isLoadingCalls} />
             <ReadOnlyField
               label="Annual Revenue"
               value={formatCurrency(getLatestAnnualRevenue(current))}
@@ -227,6 +274,13 @@ export default function SiteDetailPanel({ site, onClose }) {
                   />
                 </div>
               ))}
+
+              <EditableSelect
+                label="Preferred Contact"
+                value={current.contact_method}
+                options={CONTACT_METHODS}
+                onSave={(value) => saveField('contact_method', value)}
+              />
             </div>
           </section>
 
