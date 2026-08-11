@@ -179,3 +179,36 @@ export function formatIsoDate(value) {
 export function formatText(value) {
   return isBlank(value) ? EM_DASH : String(value)
 }
+
+/**
+ * Whole calendar days between an ISO `YYYY-MM-DD` and today.
+ *
+ * Both dates are reduced to a UTC midnight before subtracting, so the answer
+ * counts calendar days rather than elapsed hours: a straight millisecond
+ * difference drifts by one across a daylight-saving boundary, which is exactly
+ * where an "89 days" threshold would flip for no reason.
+ *
+ * Returns null when the date is blank or unparseable, and a negative number
+ * for a date in the future.
+ */
+export function daysSince(value, today = new Date()) {
+  if (isBlank(value)) return null
+
+  const [year, month, day] = String(value).split('-').map(Number)
+  if (!year || !month || !day) return null
+
+  const then = Date.UTC(year, month - 1, day)
+  const now = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+  return Math.round((now - then) / 86_400_000)
+}
+
+/** The same figure as a phrase: "today", "1 day ago", "366 days ago". */
+export function formatDaysSince(value, today = new Date()) {
+  const days = daysSince(value, today)
+  if (days === null) return EM_DASH
+  if (days === 0) return 'today'
+
+  const magnitude = Math.abs(days)
+  const unit = magnitude === 1 ? 'day' : 'days'
+  return days < 0 ? `in ${magnitude} ${unit}` : `${magnitude} ${unit} ago`
+}

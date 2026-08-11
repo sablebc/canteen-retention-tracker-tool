@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { getCallsForSite, patchSite } from '../../api/client'
 import {
+  daysSince,
   dispatchCallLogged,
   dispatchSiteUpdated,
   formatCurrency,
+  formatDaysSince,
   formatIsoDate,
   formatText,
   getLatestAnnualRevenue,
   getLatestF25Revenue,
+  isBlank,
 } from '../../lib/sites'
 import { statusClasses } from '../../lib/statusStyles'
 import CallHistory from './CallHistory'
@@ -31,6 +34,10 @@ const EDITABLE_FIELDS = [
 
 const HOW_LONG_TO_SHOW_CONFIRMATION_MS = 3000
 
+// A site that has not ordered in a quarter is the reason this call is being
+// made, so the gap is called out rather than left to be worked out from a date.
+const STALE_AFTER_DAYS = 90
+
 function ReadOnlyField({ label, value, className = '' }) {
   return (
     <div className={className}>
@@ -39,6 +46,35 @@ function ReadOnlyField({ label, value, className = '' }) {
       </dt>
       <dd className="text-sm text-gray-900">{value}</dd>
     </div>
+  )
+}
+
+/**
+ * The last order date with the gap since it spelled out beside it.
+ *
+ * A rep on a call needs "seven months ago", not a date to subtract from today
+ * while someone waits on the phone.
+ */
+function LastOrderField({ lastOrderDate }) {
+  const days = daysSince(lastOrderDate)
+  const isStale = days !== null && days >= STALE_AFTER_DAYS
+
+  return (
+    <ReadOnlyField
+      label="Last Order Date"
+      value={
+        <>
+          <span>{formatIsoDate(lastOrderDate)}</span>
+          {!isBlank(lastOrderDate) && (
+            <span
+              className={`ml-1.5 ${isStale ? 'font-medium text-warning-text' : 'text-gray-500'}`}
+            >
+              ({formatDaysSince(lastOrderDate)})
+            </span>
+          )}
+        </>
+      }
+    />
   )
 }
 
@@ -168,10 +204,7 @@ export default function SiteDetailPanel({ site, onClose }) {
               className="col-span-2"
             />
             <ReadOnlyField label="Branch" value={formatText(current.branch)} />
-            <ReadOnlyField
-              label="Last Order Date"
-              value={formatIsoDate(current.last_order_date)}
-            />
+            <LastOrderField lastOrderDate={current.last_order_date} />
             <ReadOnlyField
               label="Annual Revenue"
               value={formatCurrency(getLatestAnnualRevenue(current))}
