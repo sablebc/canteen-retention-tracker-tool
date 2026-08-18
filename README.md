@@ -1,7 +1,7 @@
-# Canteen Retention Tracker
+# Retention Tracker
 
-An internal tool for working the FY26 retention call list. It replaces the
-hand-maintained Retention Tracker spreadsheet with a map, a spreadsheet-style
+A productivity tool for working through call lists and accounts. It replaces the
+hand-maintained tracker spreadsheets with a map, a spreadsheet-style
 grid, and a per-rep call list - while still being seeded from, and refreshed by,
 the same `.xlsx` export.
 
@@ -26,15 +26,15 @@ to a single origin, so its requests are same-origin and CORS is never consulted
 - not "configured correctly", but not involved at all.
 
 ```bash
-git clone https://github.com/sablebc/canteen-retention-tracker-tool.git
-cd canteen-retention-tracker-tool
+git clone https://github.com/sablebc/-retention-tracker-tool.git
+cd -retention-tracker-tool
 cp .env.example .env
 ```
 
 Edit `.env`:
 
 ```bash
-PUBLIC_ORIGIN=http://canteen.lan     # the address people will type
+PUBLIC_ORIGIN=http://.lan     # the address people will type
 DJANGO_SECRET_KEY=...                # python3 -c "import secrets; print(secrets.token_urlsafe(64))"
 NPM_NETWORK=npm_default              # the Docker network your proxy runs on
 ```
@@ -55,9 +55,9 @@ In Nginx Proxy Manager, add **one** proxy host. No custom locations are needed:
 
 | Field | Value |
 |---|---|
-| Domain Names | `canteen.lan` (matching `PUBLIC_ORIGIN`) |
+| Domain Names | `.lan` (matching `PUBLIC_ORIGIN`) |
 | Scheme | `http` |
-| Forward Hostname / IP | `canteen-frontend` |
+| Forward Hostname / IP | `-frontend` |
 | Forward Port | `80` |
 | Websockets Support | off |
 
@@ -70,7 +70,7 @@ client_max_body_size 32m;
 Finally, verify from another machine:
 
 ```bash
-./scripts/preflight.sh http://canteen.lan
+./scripts/preflight.sh http://.lan
 ```
 
 ### Why PUBLIC_ORIGIN matters
@@ -113,7 +113,7 @@ changed is shown. This is also how you refresh the data later.
 **From the command line:**
 
 ```bash
-docker cp ./Retention_Tracker.xlsx canteen-backend:/data/uploads/
+docker cp ./Retention_Tracker.xlsx -backend:/data/uploads/
 docker compose exec backend python manage.py ingest_tracker /data/uploads/Retention_Tracker.xlsx
 ```
 
@@ -160,7 +160,7 @@ Two complementary checks - run both.
 docker compose exec backend python manage.py check_deploy
 
 # From outside: routing, hostname acceptance, uploads, static files
-./scripts/preflight.sh http://canteen.lan
+./scripts/preflight.sh http://.lan
 ```
 
 `check_deploy` catches configuration that looks correct but is not - a proxy
